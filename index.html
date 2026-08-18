@@ -1,0 +1,1270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Saboteur Draft</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap');
+
+:root {
+  --bg: #0d0f14;
+  --surface: #141720;
+  --surface2: #1c2030;
+  --surface3: #242840;
+  --border: #2a2f45;
+  --border2: #353c58;
+  --gold: #f0c040;
+  --gold-dim: #7a6020;
+  --blue: #4a8fe8;
+  --red: #e84a4a;
+  --red-dim: #3a1a1a;
+  --green: #3ab870;
+  --green-dim: #1a4a30;
+  --purple: #9b6de8;
+  --text: #dde4f0;
+  --text-dim: #6070a0;
+  --text-mid: #9aa8cc;
+  --gk: #9b6de8;
+  --def: #3ab870;
+  --mid: #f0c040;
+  --fwd: #e84a4a;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; font-size: 14px; min-height: 100vh; line-height: 1.5; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--surface); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+header {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 0 20px; height: 52px; display: flex; align-items: center;
+  justify-content: space-between; position: sticky; top: 0; z-index: 100;
+}
+.header-logo { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 22px; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); }
+.header-logo span { color: var(--text-dim); font-size: 12px; letter-spacing: 2px; margin-left: 10px; font-family: 'Inter', sans-serif; font-weight: 400; }
+.header-right { display: flex; align-items: center; gap: 12px; }
+.nav-tabs { display: flex; gap: 2px; }
+.nav-tab { padding: 6px 14px; font-size: 12px; font-weight: 500; color: var(--text-dim); border-radius: 4px; cursor: pointer; transition: all 0.15s; border: 1px solid transparent; }
+.nav-tab:hover { color: var(--text); background: var(--surface2); }
+.nav-tab.active { color: var(--gold); border-color: var(--border); background: var(--surface2); }
+.gw-num-badge { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 4px 12px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 15px; letter-spacing: 2px; color: var(--gold); }
+
+.screen { display: none; }
+.screen.active { display: block; }
+.page-wrap { max-width: 1300px; margin: 0 auto; padding: 24px 20px; }
+
+/* SETUP */
+.setup-hero { text-align: center; padding: 48px 0 36px; }
+.setup-hero h1 { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 72px; letter-spacing: 4px; line-height: 0.9; }
+.setup-hero h1 em { color: var(--gold); font-style: normal; display: block; }
+.setup-hero p { color: var(--text-dim); font-size: 13px; margin-top: 16px; max-width: 480px; margin-left: auto; margin-right: auto; line-height: 1.7; }
+.setup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 760px; margin: 0 auto 20px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
+.card-title { font-size: 10px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 14px; }
+.input-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.input-idx { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--gold); width: 18px; }
+input[type=text] { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-family: 'Inter', sans-serif; font-size: 13px; padding: 7px 10px; width: 100%; outline: none; transition: border-color 0.15s; }
+input:focus { border-color: var(--gold); }
+.rules-list { display: flex; flex-direction: column; gap: 8px; }
+.rule { display: flex; gap: 10px; font-size: 12px; color: var(--text-mid); line-height: 1.5; }
+.rule-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; background: var(--gold); color: #0d0f14; border: none; border-radius: 5px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 16px; letter-spacing: 2px; text-transform: uppercase; padding: 11px 28px; cursor: pointer; transition: all 0.15s; }
+.btn:hover { background: #ffd060; transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn:disabled { background: var(--border2); color: var(--text-dim); cursor: not-allowed; transform: none; }
+.btn-ghost { background: var(--surface2); color: var(--text-mid); border: 1px solid var(--border); font-family: 'Inter', sans-serif; font-size: 13px; letter-spacing: 0; font-weight: 500; padding: 8px 14px; }
+.btn-ghost:hover { background: var(--surface3); color: var(--text); }
+.btn-outline { background: transparent; border: 1px solid var(--border2); color: var(--text-dim); font-family: 'Inter', sans-serif; font-size: 13px; letter-spacing: 0; font-weight: 500; padding: 8px 16px; }
+.btn-outline:hover { background: var(--surface2); color: var(--text); transform: none; }
+
+.setup-cta { text-align: center; max-width: 760px; margin: 0 auto; }
+.error-box { background: var(--red-dim); border: 1px solid var(--red); border-radius: 6px; padding: 12px 16px; font-size: 13px; color: var(--text); margin-top: 12px; display: none; }
+.info-box { background: rgba(74,143,232,0.1); border: 1px solid var(--blue); border-radius: 6px; padding: 10px 14px; font-size: 12px; color: var(--text-mid); margin-top: 10px; display: none; }
+
+/* POS BADGE */
+.pos { font-size: 9px; font-weight: 700; letter-spacing: 1px; padding: 2px 5px; border-radius: 3px; text-transform: uppercase; min-width: 26px; text-align: center; flex-shrink: 0; }
+.pos-GK { background: var(--gk); color: #fff; }
+.pos-DEF { background: var(--def); color: #000; }
+.pos-MID { background: var(--mid); color: #000; }
+.pos-FWD { background: var(--fwd); color: #fff; }
+
+/* DRAFT */
+.draft-layout { display: grid; grid-template-columns: 220px 1fr 250px; gap: 16px; }
+.panel-hd { font-size: 10px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+.turn-bar { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--gold); border-radius: 6px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.turn-who { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 28px; letter-spacing: 2px; }
+.turn-meta { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+.turn-pick-num { font-family: 'JetBrains Mono', monospace; font-size: 32px; color: var(--gold); text-align: right; line-height: 1; }
+.turn-pick-lbl { font-size: 9px; letter-spacing: 2px; color: var(--text-dim); text-align: right; text-transform: uppercase; }
+.order-list { display: flex; flex-direction: column; gap: 4px; }
+.order-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 4px; font-size: 11px; border: 1px solid transparent; }
+.order-row.now { background: rgba(240,192,64,0.1); border-color: var(--gold-dim); }
+.order-pick { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-dim); width: 24px; }
+.order-name { flex: 1; font-weight: 500; }
+.order-round { font-size: 10px; color: var(--text-dim); }
+.pos-tabs { display: flex; gap: 4px; margin-bottom: 10px; flex-wrap: wrap; }
+.pos-tab { background: var(--surface2); border: 1px solid var(--border); border-radius: 3px; color: var(--text-dim); font-size: 11px; font-weight: 600; letter-spacing: 1px; padding: 4px 10px; cursor: pointer; transition: all 0.15s; }
+.pos-tab:hover:not(.active-tab) { border-color: var(--border2); color: var(--text); }
+.pos-tab.active-tab { background: var(--gold); border-color: var(--gold); color: #000; }
+.pool { display: flex; flex-direction: column; gap: 3px; max-height: 500px; overflow-y: auto; padding-right: 2px; }
+.pool-item { display: flex; align-items: center; gap: 8px; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 7px 10px; cursor: pointer; transition: all 0.12s; }
+.pool-item:hover { border-color: var(--gold); background: var(--surface3); }
+.pool-item.taken { opacity: 0.3; pointer-events: none; }
+.pool-item.unavail { opacity: 0.5; pointer-events: none; border-style: dashed; }
+.pi-name { font-size: 12px; font-weight: 500; flex: 1; }
+.pi-club { font-size: 10px; color: var(--text-dim); }
+.pi-price { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--gold); min-width: 36px; text-align: right; }
+.pi-pts { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-mid); min-width: 38px; text-align: right; }
+.team-cards { display: flex; flex-direction: column; gap: 8px; max-height: 600px; overflow-y: auto; }
+.team-card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.team-card-hd { padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; background: var(--surface2); border-bottom: 1px solid var(--border); }
+.tc-name { font-size: 12px; font-weight: 600; }
+.tc-count { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--gold); }
+.team-slots { padding: 6px 10px; display: flex; flex-direction: column; gap: 2px; }
+.team-slot { display: flex; align-items: center; gap: 6px; font-size: 11px; padding: 2px 0; border-bottom: 1px solid var(--surface2); }
+.team-slot:last-child { border-bottom: none; }
+.slot-name { flex: 1; }
+.slot-empty { color: var(--text-dim); font-style: italic; }
+
+/* LEAGUE */
+.league-table { width: 100%; border-collapse: collapse; }
+.league-table th { text-align: left; padding: 8px 12px; font-size: 10px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); border-bottom: 1px solid var(--border); }
+.league-table td { padding: 10px 12px; border-bottom: 1px solid var(--surface2); font-size: 13px; vertical-align: middle; }
+.league-table tr:hover td { background: var(--surface2); }
+.rank-1 { font-weight: 600; }
+.pts-big { font-family: 'JetBrains Mono', monospace; font-size: 18px; color: var(--gold); }
+.pts-small { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-mid); }
+.gw-cell { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-mid); }
+.gw-cell.winner { color: var(--green); font-weight: 600; }
+.gw-cell.loser { color: var(--red); }
+
+/* GAMEWEEK */
+.manager-row { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; margin-bottom: 10px; overflow: hidden; }
+.manager-row-hd { padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; background: var(--surface2); cursor: pointer; border-bottom: 1px solid var(--border); }
+.mr-name { font-size: 13px; font-weight: 600; }
+.mr-target { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+.mr-status { font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
+.mr-status.pending { color: var(--gold); }
+.mr-status.done { color: var(--green); }
+.manager-row-body { padding: 14px; display: none; }
+.manager-row-body.open { display: block; }
+.action-slot { display: flex; align-items: center; gap: 8px; background: var(--surface2); border: 1px dashed var(--border); border-radius: 4px; padding: 8px 10px; min-height: 38px; margin-bottom: 5px; }
+.action-slot.filled { border-style: solid; }
+.action-slot.steal-filled { border-color: var(--blue); background: rgba(74,143,232,0.08); }
+.action-slot.sab-filled { border-color: var(--red); background: rgba(232,74,74,0.08); }
+.as-label { font-size: 10px; color: var(--text-dim); min-width: 14px; }
+.as-content { flex: 1; font-size: 12px; }
+.as-remove { font-size: 18px; color: var(--text-dim); cursor: pointer; padding: 0 4px; line-height: 1; }
+.as-remove:hover { color: var(--red); }
+.transfer-row { display: flex; align-items: center; gap: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 8px; }
+.tr-rank { font-family: 'JetBrains Mono', monospace; font-size: 20px; color: var(--gold); min-width: 32px; text-align: center; }
+.tr-info { flex: 1; }
+.tr-name { font-size: 13px; font-weight: 600; }
+.tr-pts { font-size: 11px; color: var(--text-dim); }
+
+/* REVEAL */
+.reveal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.reveal-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.reveal-card-hd { padding: 12px 14px; background: var(--surface2); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.rc-team { font-size: 14px; font-weight: 600; }
+.rc-gw-pts { font-family: 'JetBrains Mono', monospace; font-size: 22px; color: var(--gold); }
+.reveal-players { padding: 10px 14px; display: flex; flex-direction: column; gap: 4px; }
+.rp-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; border-bottom: 1px solid var(--surface2); font-size: 11px; }
+.rp-row:last-child { border-bottom: none; }
+.rp-name { flex: 1; }
+.rp-pts { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+.rp-pts.hi { color: var(--green); }
+.rp-pts.lo { color: var(--red); }
+.tag-steal { font-size: 9px; background: var(--blue); color: #fff; padding: 1px 5px; border-radius: 2px; letter-spacing: 1px; }
+.tag-sab { font-size: 9px; background: var(--red); color: #fff; padding: 1px 5px; border-radius: 2px; letter-spacing: 1px; }
+
+/* MODAL */
+.modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 500; align-items: center; justify-content: center; }
+.modal-bg.open { display: flex; }
+.modal { background: var(--surface); border: 1px solid var(--border); border-top: 3px solid var(--gold); border-radius: 8px; width: 480px; max-width: 95vw; max-height: 90vh; overflow-y: auto; }
+.modal-hd { padding: 18px 20px 14px; border-bottom: 1px solid var(--border); }
+.modal-hd h3 { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 22px; letter-spacing: 2px; }
+.modal-hd p { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+.modal-body { padding: 16px 20px; }
+.modal-ft { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+.player-confirm-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 14px; margin-bottom: 14px; }
+.pcc-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.pcc-name { font-size: 18px; font-weight: 600; }
+.pcc-meta { font-size: 11px; color: var(--text-dim); }
+.stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.stat-box { background: var(--bg); border-radius: 4px; padding: 8px; text-align: center; }
+.stat-val { font-family: 'JetBrains Mono', monospace; font-size: 16px; color: var(--gold); }
+.stat-lbl { font-size: 9px; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
+
+.spinner { width: 28px; height: 28px; border: 2px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 0 auto 12px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-box { text-align: center; padding: 40px; color: var(--text-dim); font-size: 13px; }
+.divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+.chip { display: inline-flex; align-items: center; gap: 4px; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 3px 10px; font-size: 11px; color: var(--text-dim); }
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 10px 20px; font-size: 13px; font-weight: 500; z-index: 600; opacity: 0; transition: opacity 0.3s; pointer-events: none; max-width: 400px; text-align: center; }
+.toast.show { opacity: 1; }
+.toast.success { border-color: var(--green); color: var(--green); }
+.toast.error { border-color: var(--red); color: var(--red); }
+
+@media (max-width: 900px) { .draft-layout { grid-template-columns: 1fr; } .setup-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-logo">Saboteur <span>Fantasy League</span></div>
+  <div class="header-right">
+    <div class="nav-tabs">
+      <div class="nav-tab active" data-screen="setup" onclick="showScreen('setup')">Setup</div>
+      <div class="nav-tab" data-screen="draft" onclick="showScreen('draft')">Draft</div>
+      <div class="nav-tab" data-screen="league" onclick="showScreen('league')">League</div>
+      <div class="nav-tab" data-screen="gameweek" onclick="showScreen('gameweek')">Gameweek</div>
+    </div>
+    <div class="gw-num-badge" id="gw-badge" style="display:none">GW1</div>
+  </div>
+</header>
+
+<!-- SETUP -->
+<div id="screen-setup" class="screen active">
+<div class="page-wrap">
+  <div class="setup-hero">
+    <h1>Saboteur<em>Fantasy</em></h1>
+    <p>Snake draft your base XI. Each week steal 3 players from your rival and plant 3 duds in their team. Highest points wins — if you survive the sabotage.</p>
+  </div>
+  <div class="setup-grid">
+    <div class="card">
+      <div class="card-title">Manager Names</div>
+      <div id="drafter-inputs"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Team Names</div>
+      <div id="team-inputs"></div>
+    </div>
+    <div class="card" style="grid-column:1/-1">
+      <div class="card-title">How It Works</div>
+      <div class="rules-list">
+        <div class="rule"><span class="rule-icon">📋</span><span><strong>Draft:</strong> Snake draft of 11 players per team. Pool = top players per position per PL club (~300 total).</span></div>
+        <div class="rule"><span class="rule-icon">🗓️</span><span><strong>Each GW:</strong> Everyone simultaneously picks 3 steals from their target + 3 saboteur replacements to plant in that same team. Revealed once all submitted.</span></div>
+        <div class="rule"><span class="rule-icon">🔄</span><span><strong>Rotation:</strong> Round-robin — you face each of the other 5 managers before the cycle repeats.</span></div>
+        <div class="rule"><span class="rule-icon">💸</span><span><strong>Transfers:</strong> One free transfer per GW from undrafted pool. Lowest scorer picks first.</span></div>
+        <div class="rule"><span class="rule-icon">🏆</span><span><strong>Scoring:</strong> Highest FPL points that GW wins. Season total tracked. Base team resets each week.</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="setup-cta">
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+      <button class="btn" id="start-btn" onclick="startApp(false)">Load Live FPL Players</button>
+      <button class="btn btn-ghost" id="demo-btn" onclick="startApp(true)">Use Demo Players</button>
+    </div>
+    <div class="info-box" id="setup-info">Trying multiple sources to load FPL data…</div>
+    <div class="error-box" id="setup-error"></div>
+    <div style="font-size:11px;color:var(--text-dim);margin-top:10px">If live loading fails, use Demo Players to try the app with realistic placeholder data.</div>
+    <div style="margin-top:16px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:14px;max-width:480px;margin-left:auto;margin-right:auto">
+      <div style="font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-bottom:8px">⚙ API Backend URL (Railway)</div>
+      <input type="text" id="api-url-input" placeholder="https://your-app.up.railway.app" style="margin-bottom:6px">
+      <div style="font-size:11px;color:var(--text-dim)">Set your Railway URL after deploying the Python API. Leave blank to use localhost:5000 for local testing.</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- DRAFT -->
+<div id="screen-draft" class="screen">
+<div class="page-wrap">
+  <div id="draft-loading" class="loading-box"><div class="spinner"></div>Loading…</div>
+  <div id="draft-content" style="display:none">
+    <div class="turn-bar">
+      <div>
+        <div class="turn-who" id="turn-who">—</div>
+        <div class="turn-meta" id="turn-meta">—</div>
+      </div>
+      <div>
+        <div class="turn-pick-num" id="turn-pick-num">1</div>
+        <div class="turn-pick-lbl">Overall Pick</div>
+      </div>
+    </div>
+    <div class="draft-layout">
+      <div>
+        <div class="panel-hd">Draft Order</div>
+        <div class="order-list" id="order-list"></div>
+        <div style="margin-top:16px">
+          <div class="panel-hd">Formation</div>
+          <div style="font-size:12px;color:var(--text-dim);line-height:2">
+            🧤 GK: <strong style="color:var(--text)">1</strong><br>
+            🛡 DEF: <strong style="color:var(--text)">4</strong><br>
+            ⚡ MID: <strong style="color:var(--text)">3</strong><br>
+            ⚽ FWD: <strong style="color:var(--text)">3</strong>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="panel-hd">Player Pool <span id="pool-count" style="color:var(--gold);font-family:monospace;font-size:11px"></span></div>
+        <div class="pos-tabs" id="pos-tabs">
+          <button class="pos-tab active-tab" onclick="setFilter('ALL',this)">ALL</button>
+          <button class="pos-tab" onclick="setFilter('GK',this)">GK</button>
+          <button class="pos-tab" onclick="setFilter('DEF',this)">DEF</button>
+          <button class="pos-tab" onclick="setFilter('MID',this)">MID</button>
+          <button class="pos-tab" onclick="setFilter('FWD',this)">FWD</button>
+        </div>
+        <input type="text" id="pool-search" placeholder="Search players…" style="margin-bottom:8px" oninput="renderPool()">
+        <div class="pool" id="pool"></div>
+      </div>
+      <div>
+        <div class="panel-hd">Teams</div>
+        <div class="team-cards" id="team-cards"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- LEAGUE -->
+<div id="screen-league" class="screen">
+<div class="page-wrap">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+    <div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:32px;letter-spacing:2px">League Table</div>
+      <div style="color:var(--text-dim);font-size:12px;margin-top:4px">Season standings · GW history</div>
+    </div>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <table class="league-table">
+      <thead><tr>
+        <th>#</th><th>Team</th><th>Manager</th><th>GW Wins</th><th>Season Pts</th>
+        <th id="gw-col-headers"></th>
+      </tr></thead>
+      <tbody id="league-body"></tbody>
+    </table>
+  </div>
+</div>
+</div>
+
+<!-- GAMEWEEK -->
+<div id="screen-gameweek" class="screen">
+<div class="page-wrap">
+  <div id="gw-content"><div class="loading-box">Complete the draft first.</div></div>
+</div>
+</div>
+
+<!-- MODAL: Draft pick confirm -->
+<div class="modal-bg" id="modal-pick">
+  <div class="modal">
+    <div class="modal-hd"><h3 id="mpick-title">Confirm Pick</h3><p id="mpick-sub"></p></div>
+    <div class="modal-body"><div class="player-confirm-card" id="mpick-player"></div></div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" onclick="closeModal('modal-pick')">Cancel</button>
+      <button class="btn" onclick="confirmDraftPick()">Draft Player</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: GW player picker -->
+<div class="modal-bg" id="modal-gw-pick">
+  <div class="modal">
+    <div class="modal-hd"><h3 id="mgwp-title">Select Player</h3><p id="mgwp-sub"></p></div>
+    <div class="modal-body">
+      <input type="text" id="mgwp-search" placeholder="Search…" style="margin-bottom:10px" oninput="renderGWPool()">
+      <div class="pos-tabs" id="mgwp-tabs">
+        <button class="pos-tab active-tab" onclick="setGWFilter('ALL',this)">ALL</button>
+        <button class="pos-tab" onclick="setGWFilter('GK',this)">GK</button>
+        <button class="pos-tab" onclick="setGWFilter('DEF',this)">DEF</button>
+        <button class="pos-tab" onclick="setGWFilter('MID',this)">MID</button>
+        <button class="pos-tab" onclick="setGWFilter('FWD',this)">FWD</button>
+      </div>
+      <div class="pool" id="mgwp-pool" style="max-height:320px"></div>
+    </div>
+    <div class="modal-ft"><button class="btn btn-outline" onclick="closeModal('modal-gw-pick')">Cancel</button></div>
+  </div>
+</div>
+
+<!-- MODAL: Transfer -->
+<div class="modal-bg" id="modal-transfer">
+  <div class="modal">
+    <div class="modal-hd"><h3 id="mtr-title">Weekly Transfer</h3><p id="mtr-sub"></p></div>
+    <div class="modal-body">
+      <div style="margin-bottom:12px">
+        <div style="font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px">Transfer OUT (your base team)</div>
+        <div class="pool" id="mtr-out-pool" style="max-height:150px"></div>
+      </div>
+      <hr class="divider">
+      <div>
+        <div style="font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px">Transfer IN (undrafted pool — same position)</div>
+        <input type="text" id="mtr-search" placeholder="Search…" style="margin-bottom:8px" oninput="renderTransferInPool()">
+        <div class="pos-tabs" id="mtr-tabs">
+          <button class="pos-tab active-tab" onclick="setTrFilter('ALL',this)">ALL</button>
+          <button class="pos-tab" onclick="setTrFilter('GK',this)">GK</button>
+          <button class="pos-tab" onclick="setTrFilter('DEF',this)">DEF</button>
+          <button class="pos-tab" onclick="setTrFilter('MID',this)">MID</button>
+          <button class="pos-tab" onclick="setTrFilter('FWD',this)">FWD</button>
+        </div>
+        <div class="pool" id="mtr-in-pool" style="max-height:200px"></div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" onclick="skipTransfer(currentTransferMgr)">Skip Transfer</button>
+      <button class="btn" id="mtr-confirm" onclick="confirmTransfer()" disabled>Confirm Transfer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════
+// DEMO DATA — realistic PL players for offline testing
+// ══════════════════════════════════════════════════════
+function generateDemoPlayers() {
+  const clubs = [
+    {name:'Arsenal',short:'ARS'},{name:'Aston Villa',short:'AVL'},{name:'Bournemouth',short:'BOU'},
+    {name:'Brentford',short:'BRE'},{name:'Brighton',short:'BHA'},{name:'Chelsea',short:'CHE'},
+    {name:'Crystal Palace',short:'CRY'},{name:'Everton',short:'EVE'},{name:'Fulham',short:'FUL'},
+    {name:'Ipswich',short:'IPS'},{name:'Leicester',short:'LEI'},{name:'Liverpool',short:'LIV'},
+    {name:'Man City',short:'MCI'},{name:'Man Utd',short:'MUN'},{name:'Newcastle',short:'NEW'},
+    {name:'Nottm Forest',short:'NFO'},{name:'Southampton',short:'SOU'},{name:'Spurs',short:'TOT'},
+    {name:'West Ham',short:'WHU'},{name:'Wolves',short:'WOL'}
+  ];
+
+  const templates = {
+    GK: [['Raya',12.0,180],['Flekken',5.0,80]],
+    DEF: [['White',7.0,140],['Saliba',6.5,155],['Gabriel',6.0,130],['Timber',5.5,90],['Calafiori',5.0,75]],
+    MID: [['Saka',10.0,220],['Ødegaard',8.5,160],['Havertz',7.5,140],['Rice',6.5,120],['Trossard',6.0,100]],
+    FWD: [['Watkins',9.0,190],['Ollie',8.0,140],['Duran',5.5,90],['Archer',5.0,70]]
+  };
+
+  let id = 1;
+  const players = [];
+  clubs.forEach((club, ci) => {
+    Object.entries(templates).forEach(([pos, tpls]) => {
+      tpls.forEach(([surname, basePrice, basePts], pi) => {
+        const variance = (Math.random() - 0.5) * 30;
+        const pts = Math.max(10, Math.round(basePts + variance));
+        const gwPts = Math.floor(Math.random() * 12);
+        players.push({
+          id: id++,
+          name: club.short + ' ' + surname,
+          full: club.name + ' ' + surname,
+          team: club.short,
+          teamId: ci,
+          pos,
+          price: Math.round((basePrice + (Math.random()-0.5)) * 10) / 10,
+          pts,
+          ppg: Math.round(pts/38*10)/10,
+          form: Math.round(Math.random()*9*10)/10,
+          sel: Math.round(Math.random()*30*10)/10,
+          mins: Math.floor(Math.random()*2000+500),
+          gwPts,
+        });
+      });
+    });
+  });
+  return players;
+}
+
+// ══════════════════════════════════════════════════════
+// API CONFIG — set your Railway URL here after deploying
+// ══════════════════════════════════════════════════════
+// Replace this with your Railway URL once deployed, e.g.:
+// const API_BASE = 'https://saboteur-api-production.up.railway.app';
+const API_BASE = window.SABOTEUR_API_URL || 'http://localhost:5000';
+
+async function fetchFPL() {
+  const res = await Promise.race([
+    fetch(`${API_BASE}/api/players`),
+    new Promise((_,r) => setTimeout(() => r(new Error('Request timed out after 15s')), 15000))
+  ]);
+  if (!res.ok) throw new Error(`API returned ${res.status}`);
+  const json = await res.json();
+  if (json.error) throw new Error(json.error);
+  return json.players;
+}
+
+// Fetch live GW points and patch into player objects
+async function fetchAndApplyGWPoints(gw) {
+  try {
+    const res = await fetch(`${API_BASE}/api/gameweek/${gw}`);
+    if (!res.ok) return;
+    const json = await res.json();
+    const pts = json.points || {};
+    // Patch gwPts onto all players in state
+    S.players.forEach(p => { if (pts[p.id] !== undefined) p.gwPts = pts[p.id]; });
+    // Also patch into base teams
+    S.baseTeams.forEach(team => team.forEach(p => { if (pts[p.id] !== undefined) p.gwPts = pts[p.id]; }));
+    saveState();
+    showToast(`GW${gw} points loaded`, 'success');
+  } catch(e) {
+    showToast('Could not load live GW points', 'error');
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════
+const NUM_MGR = 6;
+const SQUAD = {GK:1,DEF:4,MID:3,FWD:3};
+
+function defaultState() {
+  return {
+    phase: 'setup',
+    managers: [],
+    players: [],
+    draftOrder: [],
+    draftPick: 0,
+    baseTeams: [],
+    posCounts: [],
+    drafted: [],
+    currentGW: 1,
+    rotation: [],
+    rotationWeek: 0,
+    gwSubmissions: [],
+    seasonPts: [],
+    gwHistory: [],
+    transferOrder: [],
+    transfersDone: [],
+    gwPhase: 'picks',
+    isDemo: false,
+  };
+}
+
+let S = loadState();
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem('saboteur_v4');
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  return defaultState();
+}
+function saveState() {
+  try { localStorage.setItem('saboteur_v4', JSON.stringify(S)); } catch(e){}
+}
+
+// ══════════════════════════════════════════════════════
+// NAV
+// ══════════════════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-'+id).classList.add('active');
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.screen===id));
+  if (id==='league') renderLeague();
+  if (id==='gameweek') renderGameweek();
+  if (id==='draft' && S.phase==='draft') renderDraft();
+}
+
+// ══════════════════════════════════════════════════════
+// SETUP
+// ══════════════════════════════════════════════════════
+const DEF_MGR = ['Alice','Bob','Charlie','Diana','Eve','Frank'];
+const DEF_TEAM = ['The Plodders','Bench Warmers','Dead Rubber FC','The Strugglers','Mid Table Mess','Wooden Spoon XI'];
+
+function buildSetupInputs() {
+  const d = document.getElementById('drafter-inputs');
+  const t = document.getElementById('team-inputs');
+  for (let i=0;i<NUM_MGR;i++) {
+    d.innerHTML += `<div class="input-row"><span class="input-idx">${i+1}</span><input type="text" id="m-${i}" value="${(S.managers[i]||{}).name||DEF_MGR[i]}"></div>`;
+    t.innerHTML += `<div class="input-row"><span class="input-idx">${i+1}</span><input type="text" id="t-${i}" value="${(S.managers[i]||{}).team||DEF_TEAM[i]}"></div>`;
+  }
+}
+
+async function startApp(useDemo) {
+  // Apply custom API URL if provided
+  const apiInput = document.getElementById('api-url-input').value.trim();
+  if (apiInput) window.SABOTEUR_API_URL = apiInput.replace(/\/$/, '');
+
+  const btn = document.getElementById('start-btn');
+  const demoBtn = document.getElementById('demo-btn');
+  const err = document.getElementById('setup-error');
+  const info = document.getElementById('setup-info');
+  err.style.display = 'none';
+
+  S.managers = Array.from({length:NUM_MGR}, (_,i) => ({
+    name: document.getElementById('m-'+i).value.trim() || DEF_MGR[i],
+    team: document.getElementById('t-'+i).value.trim() || DEF_TEAM[i],
+  }));
+
+  btn.disabled = true; demoBtn.disabled = true;
+
+  let players;
+  if (useDemo) {
+    players = generateDemoPlayers();
+    S.isDemo = true;
+  } else {
+    info.textContent = 'Connecting to FPL API (trying multiple sources)…';
+    info.style.display = 'block';
+    try {
+      players = await fetchFPL();
+      S.isDemo = false;
+      info.style.display = 'none';
+    } catch(e) {
+      info.style.display = 'none';
+      err.textContent = '⚠ Could not reach FPL API. Try "Use Demo Players" to test the app, or check your internet connection.';
+      err.style.display = 'block';
+      btn.disabled = false; demoBtn.disabled = false;
+      return;
+    }
+  }
+
+  S.players = players;
+  S.baseTeams = Array.from({length:NUM_MGR}, ()=>[]);
+  S.posCounts = Array.from({length:NUM_MGR}, ()=>({GK:0,DEF:0,MID:0,FWD:0}));
+  S.drafted = [];
+  S.seasonPts = Array(NUM_MGR).fill(0);
+  S.gwHistory = [];
+  S.draftPick = 0;
+  S.draftOrder = buildSnakeOrder();
+  S.rotation = buildRotation(0);
+  S.rotationWeek = 0;
+  S.gwSubmissions = Array.from({length:NUM_MGR}, ()=>({steals:[null,null,null],saboteurs:[null,null,null],done:false}));
+  S.transferOrder = [];
+  S.transfersDone = [];
+  S.gwPhase = 'picks';
+  S.currentGW = 1;
+  S.phase = 'draft';
+
+  saveState();
+  document.getElementById('gw-badge').style.display = 'block';
+  document.getElementById('gw-badge').textContent = 'DRAFT';
+  showScreen('draft');
+  renderDraft();
+}
+
+// ══════════════════════════════════════════════════════
+// DRAFT
+// ══════════════════════════════════════════════════════
+function buildSnakeOrder() {
+  const seq = []; let pick=1;
+  for (let r=0;r<11;r++) {
+    for (let i=0;i<NUM_MGR;i++) {
+      const mIdx = r%2===0 ? i : NUM_MGR-1-i;
+      seq.push({mIdx, pickNum:pick++});
+    }
+  }
+  return seq;
+}
+
+function buildRotation(w) {
+  const offset = w % (NUM_MGR-1);
+  return Array.from({length:NUM_MGR}, (_,i) => (i+1+offset) % NUM_MGR);
+}
+
+let draftFilter='ALL', pendingDraftPlayer=null;
+
+function renderDraft() {
+  document.getElementById('draft-loading').style.display='none';
+  document.getElementById('draft-content').style.display='block';
+  if (S.draftPick >= S.draftOrder.length) { finishDraft(); return; }
+  const cur = S.draftOrder[S.draftPick];
+  const m = S.managers[cur.mIdx];
+  document.getElementById('turn-who').textContent = m.name;
+  document.getElementById('turn-meta').textContent =
+    `Picking for ${m.team} · Round ${Math.ceil(cur.pickNum/NUM_MGR)} · Needs: ${neededPos(cur.mIdx)||'—'}`;
+  document.getElementById('turn-pick-num').textContent = cur.pickNum;
+  renderOrderList(); renderPool(); renderTeamCards();
+}
+
+function neededPos(mIdx) {
+  return Object.entries(SQUAD).filter(([p,n])=>S.posCounts[mIdx][p]<n).map(([p])=>p).join(' ');
+}
+
+function setFilter(pos,el) {
+  draftFilter=pos;
+  document.querySelectorAll('#pos-tabs .pos-tab').forEach(t=>t.classList.remove('active-tab'));
+  el.classList.add('active-tab'); renderPool();
+}
+
+function renderOrderList() {
+  document.getElementById('order-list').innerHTML =
+    S.draftOrder.slice(S.draftPick, S.draftPick+14).map((o,i)=>`
+      <div class="order-row ${i===0?'now':''}">
+        <span class="order-pick">#${o.pickNum}</span>
+        <span class="order-name">${S.managers[o.mIdx].name}</span>
+        <span class="order-round">R${Math.ceil(o.pickNum/NUM_MGR)}</span>
+      </div>`).join('');
+}
+
+function renderPool() {
+  const search=(document.getElementById('pool-search').value||'').toLowerCase();
+  const cur=S.draftOrder[S.draftPick];
+  const pc=S.posCounts[cur.mIdx];
+  const drafted=new Set(S.drafted);
+
+  let players=S.players.filter(p=>{
+    if(drafted.has(p.id))return false;
+    if(draftFilter!=='ALL'&&p.pos!==draftFilter)return false;
+    if(search&&!p.name.toLowerCase().includes(search)&&!p.team.toLowerCase().includes(search))return false;
+    return true;
+  }).sort((a,b)=>{
+    const an=pc[a.pos]<SQUAD[a.pos]?1:0, bn=pc[b.pos]<SQUAD[b.pos]?1:0;
+    if(an!==bn)return bn-an;
+    return b.pts-a.pts;
+  });
+
+  document.getElementById('pool-count').textContent=`${players.length} available`;
+  document.getElementById('pool').innerHTML=players.map(p=>{
+    const needed=pc[p.pos]<SQUAD[p.pos];
+    return `<div class="pool-item ${needed?'':'unavail'}" onclick="openDraftModal(${p.id})">
+      <span class="pos pos-${p.pos}">${p.pos}</span>
+      <div><div class="pi-name">${p.name}</div><div class="pi-club">${p.team}</div></div>
+      <span class="pi-pts">${p.pts}pts</span>
+      <span class="pi-price">£${p.price}m</span>
+    </div>`;
+  }).join('')||'<div style="padding:16px;color:var(--text-dim)">No players found.</div>';
+}
+
+function renderTeamCards() {
+  const cur=S.draftOrder[S.draftPick];
+  document.getElementById('team-cards').innerHTML=S.managers.map((m,i)=>{
+    const team=S.baseTeams[i];
+    const byPos={};
+    team.forEach(p=>{if(!byPos[p.pos])byPos[p.pos]=[];byPos[p.pos].push(p);});
+    const counts={GK:0,DEF:0,MID:0,FWD:0};
+    const posOrder=['GK','DEF','DEF','DEF','DEF','MID','MID','MID','FWD','FWD','FWD'];
+    const slots=posOrder.map(pos=>{
+      const idx=counts[pos]++;
+      const p=byPos[pos]?byPos[pos][idx]:null;
+      return `<div class="team-slot">
+        <span class="pos pos-${pos}" style="font-size:8px;padding:1px 3px">${pos}</span>
+        ${p?`<span class="slot-name">${p.name}</span>`:`<span class="slot-name slot-empty">—</span>`}
+      </div>`;
+    }).join('');
+    return `<div class="team-card" style="${cur.mIdx===i?'border-color:var(--gold)':''}">
+      <div class="team-card-hd">
+        <div><div class="tc-name">${m.team}</div><div style="font-size:10px;color:var(--text-dim)">${m.name}</div></div>
+        <div class="tc-count">${team.length}/11</div>
+      </div>
+      <div class="team-slots">${slots}</div>
+    </div>`;
+  }).join('');
+}
+
+function openDraftModal(pid) {
+  const cur=S.draftOrder[S.draftPick];
+  const p=S.players.find(x=>x.id===pid);
+  if(!p)return;
+  if(S.posCounts[cur.mIdx][p.pos]>=SQUAD[p.pos]){
+    showToast(`Already has ${SQUAD[p.pos]} ${p.pos}(s)`,'error');return;
+  }
+  pendingDraftPlayer=p;
+  document.getElementById('mpick-title').textContent='Confirm Pick';
+  document.getElementById('mpick-sub').textContent=`${S.managers[cur.mIdx].name} picks for ${S.managers[cur.mIdx].team} · Pick #${cur.pickNum}`;
+  document.getElementById('mpick-player').innerHTML=playerCardHTML(p);
+  openModal('modal-pick');
+}
+
+function confirmDraftPick() {
+  if(!pendingDraftPlayer)return;
+  const cur=S.draftOrder[S.draftPick];
+  const p=pendingDraftPlayer;
+  S.baseTeams[cur.mIdx].push(p);
+  S.posCounts[cur.mIdx][p.pos]++;
+  S.drafted.push(p.id);
+  S.draftPick++;
+  pendingDraftPlayer=null;
+  closeModal('modal-pick');
+  saveState();
+  S.draftPick>=S.draftOrder.length ? finishDraft() : renderDraft();
+}
+
+function finishDraft() {
+  S.phase='gameweek'; saveState();
+  document.getElementById('gw-badge').textContent=`GW${S.currentGW}`;
+  showToast('Draft complete! Go to Gameweek to start.','success');
+  showScreen('gameweek');
+}
+
+// ══════════════════════════════════════════════════════
+// GAMEWEEK
+// ══════════════════════════════════════════════════════
+function renderGameweek() {
+  const el=document.getElementById('gw-content');
+  if(S.phase==='setup'||S.phase==='draft'){el.innerHTML='<div class="loading-box">Complete the draft first.</div>';return;}
+  document.getElementById('gw-badge').textContent=`GW${S.currentGW}`;
+  if(S.gwPhase==='picks') renderPicksPhase(el);
+  else if(S.gwPhase==='transfer') renderTransferPhase(el);
+  else if(S.gwPhase==='reveal') renderRevealPhase(el);
+}
+
+// ── PICKS ──
+function renderPicksPhase(el) {
+  const allDone=S.gwSubmissions.every(s=>s.done);
+  let html=`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:28px;letter-spacing:2px">Gameweek ${S.currentGW} · Picks</div>
+        <div style="color:var(--text-dim);font-size:12px;margin-top:2px">All managers submit simultaneously. Picks hidden until all done.${S.isDemo?' <span style="color:var(--gold)">[DEMO MODE]</span>':''}</div>
+      </div>
+      ${allDone?`<button class="btn" onclick="revealPicks()">Reveal All Picks →</button>`:`<div class="chip">${S.gwSubmissions.filter(s=>s.done).length}/${NUM_MGR} submitted</div>`}
+    </div>`;
+
+  S.managers.forEach((m,mIdx)=>{
+    const sub=S.gwSubmissions[mIdx];
+    const targetIdx=S.rotation[mIdx];
+    const sabOfMeIdx=S.rotation.indexOf(mIdx);
+    html+=`
+    <div class="manager-row">
+      <div class="manager-row-hd" onclick="toggleRow(${mIdx})">
+        <div>
+          <div class="mr-name">${m.name} <span style="color:var(--text-dim);font-size:11px">· ${m.team}</span></div>
+          <div class="mr-target">🗡 Targeting: <strong>${S.managers[targetIdx].team}</strong> · 🛡 Being sabotaged by: <strong>${S.managers[sabOfMeIdx].name}</strong></div>
+        </div>
+        <div class="mr-status ${sub.done?'done':'pending'}">${sub.done?'✓ SUBMITTED':'PENDING'}</div>
+      </div>
+      <div class="manager-row-body ${sub.done?'':'open'}" id="mrb-${mIdx}">
+        ${sub.done?'<div style="color:var(--green);font-size:13px;padding:8px">✓ Submitted — waiting for others</div>':renderPicksForm(mIdx,targetIdx)}
+      </div>
+    </div>`;
+  });
+  el.innerHTML=html;
+}
+
+function toggleRow(mIdx){
+  const el=document.getElementById('mrb-'+mIdx);
+  if(el)el.classList.toggle('open');
+}
+
+function renderPicksForm(mIdx,targetIdx) {
+  const sub=S.gwSubmissions[mIdx];
+  const target=S.managers[targetIdx];
+
+  const stealSlots=[0,1,2].map(i=>{
+    const pid=sub.steals[i];
+    const p=pid?S.players.find(x=>x.id===pid):null;
+    return `<div class="action-slot ${p?'filled steal-filled':''}">
+      <span class="as-label" style="color:var(--blue)">${i+1}</span>
+      <span class="as-content">${p?`<span class="pos pos-${p.pos}">${p.pos}</span> ${p.name} <span style="color:var(--text-dim);font-size:10px">${p.team}</span>`:`<span style="color:var(--text-dim)">Pick from ${target.team}…</span>`}</span>
+      ${p?`<span class="as-remove" onclick="removeSteal(${mIdx},${i})">×</span>`:''}
+    </div>`;
+  }).join('');
+
+  const sabSlots=[0,1,2].map(i=>{
+    const pid=sub.saboteurs[i];
+    const p=pid?S.players.find(x=>x.id===pid):null;
+    return `<div class="action-slot ${p?'filled sab-filled':''}">
+      <span class="as-label" style="color:var(--red)">${i+1}</span>
+      <span class="as-content">${p?`<span class="pos pos-${p.pos}">${p.pos}</span> ${p.name} <span style="color:var(--text-dim);font-size:10px">${p.team}</span>`:`<span style="color:var(--text-dim)">Plant a dud in ${target.team}…</span>`}</span>
+      ${p?`<span class="as-remove" onclick="removeSab(${mIdx},${i})">×</span>`:''}
+    </div>`;
+  }).join('');
+
+  const ready=sub.steals.filter(Boolean).length===3&&sub.saboteurs.filter(Boolean).length===3;
+  return `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div>
+        <div style="font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--blue);margin-bottom:8px">🗡 Steal from ${target.team}</div>
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px">3 players to temporarily take into your team</div>
+        ${stealSlots}
+        <button class="btn btn-ghost" style="margin-top:8px;font-size:12px;padding:6px 12px" onclick="openStealPicker(${mIdx})">+ Choose Steal</button>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--red);margin-bottom:8px">💣 Sabotage ${target.team}</div>
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px">3 duds from undrafted pool to plant in their team</div>
+        ${sabSlots}
+        <button class="btn btn-ghost" style="margin-top:8px;font-size:12px;padding:6px 12px" onclick="openSabPicker(${mIdx})">+ Choose Saboteur</button>
+      </div>
+    </div>
+    <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:12px">
+      <button class="btn ${ready?'':'btn-ghost'}" onclick="submitPicks(${mIdx})" ${ready?'':'disabled'}>Submit ${S.managers[mIdx].name}'s Picks</button>
+      ${!ready?`<span style="font-size:11px;color:var(--text-dim)">Need 3 steals + 3 saboteurs</span>`:''}
+    </div>`;
+}
+
+let gwPickMode=null, gwPoolFilter='ALL';
+
+function openStealPicker(mIdx) {
+  const sub=S.gwSubmissions[mIdx];
+  const nextSlot=sub.steals.findIndex(x=>!x);
+  if(nextSlot===-1){showToast('Already have 3 steals','error');return;}
+  gwPickMode={mIdx,slot:nextSlot,mode:'steal'};
+  gwPoolFilter='ALL';
+  const targetIdx=S.rotation[mIdx];
+  document.getElementById('mgwp-title').textContent='Steal from '+S.managers[targetIdx].team;
+  document.getElementById('mgwp-sub').textContent='Pick players from their base team to bring into yours this week';
+  document.getElementById('mgwp-search').value='';
+  document.querySelectorAll('#mgwp-tabs .pos-tab').forEach((t,i)=>t.classList.toggle('active-tab',i===0));
+  renderGWPool(); openModal('modal-gw-pick');
+}
+
+function openSabPicker(mIdx) {
+  const sub=S.gwSubmissions[mIdx];
+  const nextSlot=sub.saboteurs.findIndex(x=>!x);
+  if(nextSlot===-1){showToast('Already have 3 saboteurs','error');return;}
+  gwPickMode={mIdx,slot:nextSlot,mode:'sab'};
+  gwPoolFilter='ALL';
+  const targetIdx=S.rotation[mIdx];
+  document.getElementById('mgwp-title').textContent='Plant a dud in '+S.managers[targetIdx].team;
+  document.getElementById('mgwp-sub').textContent='Pick from undrafted pool — worst first. They replace a player in the target team.';
+  document.getElementById('mgwp-search').value='';
+  document.querySelectorAll('#mgwp-tabs .pos-tab').forEach((t,i)=>t.classList.toggle('active-tab',i===0));
+  renderGWPool(); openModal('modal-gw-pick');
+}
+
+function setGWFilter(pos,el){
+  gwPoolFilter=pos;
+  document.querySelectorAll('#mgwp-tabs .pos-tab').forEach(t=>t.classList.remove('active-tab'));
+  if(el)el.classList.add('active-tab');
+  renderGWPool();
+}
+
+function renderGWPool(){
+  const el=document.getElementById('mgwp-pool');
+  if(!gwPickMode)return;
+  const {mIdx,slot,mode}=gwPickMode;
+  const targetIdx=S.rotation[mIdx];
+  const search=(document.getElementById('mgwp-search').value||'').toLowerCase();
+  const drafted=new Set(S.drafted);
+  const allSabs=new Set(S.gwSubmissions.flatMap(s=>s.saboteurs.filter(Boolean)));
+
+  let players;
+  if(mode==='steal'){
+    const alreadyStolen=S.gwSubmissions[mIdx].steals.filter(Boolean);
+    players=S.baseTeams[targetIdx].filter(p=>{
+      if(alreadyStolen.includes(p.id))return false;
+      if(gwPoolFilter!=='ALL'&&p.pos!==gwPoolFilter)return false;
+      if(search&&!p.name.toLowerCase().includes(search))return false;
+      return true;
+    }).sort((a,b)=>b.pts-a.pts);
+  } else {
+    const alreadySab=S.gwSubmissions[mIdx].saboteurs.filter(Boolean);
+    players=S.players.filter(p=>{
+      if(drafted.has(p.id))return false;
+      if(alreadySab.includes(p.id))return false;
+      if(allSabs.has(p.id))return false;
+      if(gwPoolFilter!=='ALL'&&p.pos!==gwPoolFilter)return false;
+      if(search&&!p.name.toLowerCase().includes(search)&&!p.team.toLowerCase().includes(search))return false;
+      return true;
+    }).sort((a,b)=>a.pts-b.pts); // worst first for sabotage
+  }
+
+  el.innerHTML=players.map(p=>`
+    <div class="pool-item" onclick="selectGWPlayer(${p.id})">
+      <span class="pos pos-${p.pos}">${p.pos}</span>
+      <div><div class="pi-name">${p.name}</div><div class="pi-club">${p.team}</div></div>
+      <span class="pi-pts">${p.pts}pts</span>
+      <span class="pi-price">£${p.price}m</span>
+    </div>`).join('')||'<div style="padding:16px;color:var(--text-dim);font-size:12px">No players found.</div>';
+}
+
+function selectGWPlayer(pid){
+  if(!gwPickMode)return;
+  const {mIdx,slot,mode}=gwPickMode;
+  if(mode==='steal') S.gwSubmissions[mIdx].steals[slot]=pid;
+  else S.gwSubmissions[mIdx].saboteurs[slot]=pid;
+  closeModal('modal-gw-pick');
+  saveState(); renderGameweek();
+}
+
+function removeSteal(mIdx,slot){S.gwSubmissions[mIdx].steals[slot]=null;saveState();renderGameweek();}
+function removeSab(mIdx,slot){S.gwSubmissions[mIdx].saboteurs[slot]=null;saveState();renderGameweek();}
+
+function submitPicks(mIdx){
+  const sub=S.gwSubmissions[mIdx];
+  if(sub.steals.filter(Boolean).length<3||sub.saboteurs.filter(Boolean).length<3){
+    showToast('Need 3 steals + 3 saboteurs','error');return;
+  }
+  sub.done=true; saveState(); renderGameweek();
+  showToast(`${S.managers[mIdx].name}'s picks locked in!`,'success');
+}
+
+// ── REVEAL ──
+function revealPicks(){S.gwPhase='reveal';saveState();renderGameweek();}
+
+function buildEffectiveTeams(){
+  return S.managers.map((m,mIdx)=>{
+    const targetIdx=S.rotation[mIdx];
+    const sabOfMeIdx=S.rotation.indexOf(mIdx);
+    const stolenPids=S.gwSubmissions[mIdx].steals.filter(Boolean);
+    const stolenPlayers=stolenPids.map(pid=>({...S.players.find(p=>p.id===pid),isStolen:true}));
+    const sabPids=(S.gwSubmissions[sabOfMeIdx]||{saboteurs:[]}).saboteurs.filter(Boolean);
+    const sabPlayers=sabPids.map(pid=>({...S.players.find(p=>p.id===pid),isSaboteur:true}));
+
+    // Start with base, remove stolen-away players
+    let effective=[...S.baseTeams[mIdx]].filter(p=>!stolenPids.includes(p.id));
+
+    // Replace lowest-pts same-pos players with saboteurs
+    sabPlayers.forEach(sab=>{
+      const samePos=effective.filter(p=>p.pos===sab.pos);
+      const target=samePos.length>0
+        ? samePos.sort((a,b)=>a.pts-b.pts)[0]
+        : [...effective].sort((a,b)=>a.pts-b.pts)[0];
+      if(target) effective=effective.filter(p=>p.id!==target.id);
+      effective.push(sab);
+    });
+
+    effective.push(...stolenPlayers);
+    effective=effective.slice(0,11);
+    const gwPts=effective.reduce((s,p)=>s+(p.gwPts||0),0);
+    return {mIdx,effective,gwPts};
+  });
+}
+
+function renderRevealPhase(el){
+  const effectiveTeams=buildEffectiveTeams();
+  const maxPts=Math.max(...effectiveTeams.map(t=>t.gwPts));
+  const winner=effectiveTeams.find(t=>t.gwPts===maxPts).mIdx;
+
+  let html=`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:28px;letter-spacing:2px">GW${S.currentGW} Reveal</div>
+        <div style="color:var(--text-dim);font-size:12px;margin-top:2px">Steals & sabotage revealed · ${S.managers[winner].team} leads</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-ghost" onclick="refreshGWPoints()" style="font-size:12px;padding:8px 14px">↻ Refresh Live Points</button>
+        <button class="btn" onclick="finaliseGW()">Finalise & Open Transfers →</button>
+      </div>
+    </div>
+    <div class="reveal-grid">`;
+
+  effectiveTeams.forEach(({mIdx,effective,gwPts})=>{
+    const m=S.managers[mIdx];
+    const isWin=mIdx===winner;
+    html+=`<div class="reveal-card" style="${isWin?'border-color:var(--gold)':''}">
+      <div class="reveal-card-hd">
+        <div>${isWin?'<div style="font-size:9px;color:var(--gold);letter-spacing:2px;font-weight:700;margin-bottom:2px">★ GW LEADER</div>':''}<div class="rc-team">${m.team} <span style="font-size:11px;color:var(--text-dim);font-weight:400">· ${m.name}</span></div></div>
+        <div><div class="rc-gw-pts">${gwPts}</div><div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;text-align:right">GW PTS</div></div>
+      </div>
+      <div class="reveal-players">
+        ${effective.map(p=>{
+          const pts=p.gwPts||0;
+          return `<div class="rp-row">
+            <span class="pos pos-${p.pos}" style="font-size:8px;padding:1px 4px">${p.pos}</span>
+            <span class="rp-name">${p.name}</span>
+            ${p.isStolen?'<span class="tag-steal">STEAL</span>':''}
+            ${p.isSaboteur?'<span class="tag-sab">SAB</span>':''}
+            <span class="rp-pts ${pts>=8?'hi':pts<=2?'lo':''}">${pts}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  });
+  html+='</div>';
+  el.innerHTML=html;
+}
+
+async function refreshGWPoints(){
+  await fetchAndApplyGWPoints(S.currentGW);
+  renderGameweek();
+}
+
+function finaliseGW(){
+  const effectiveTeams=buildEffectiveTeams();
+  const maxPts=Math.max(...effectiveTeams.map(t=>t.gwPts));
+  if(!S.gwHistory[S.currentGW-1]) S.gwHistory[S.currentGW-1]=Array(NUM_MGR).fill(null);
+  effectiveTeams.forEach(r=>{
+    S.seasonPts[r.mIdx]+=r.gwPts;
+    S.gwHistory[S.currentGW-1][r.mIdx]={pts:r.gwPts,win:r.gwPts===maxPts};
+  });
+  S.transferOrder=[...effectiveTeams].sort((a,b)=>a.gwPts-b.gwPts).map(r=>r.mIdx);
+  S.transfersDone=[];
+  S.gwPhase='transfer';
+  saveState(); renderGameweek();
+}
+
+// ── TRANSFER ──
+let currentTransferMgr=null, trOutPlayer=null, trInPlayer=null, trFilter='ALL';
+
+function renderTransferPhase(el){
+  const allDone=S.transferOrder.every(i=>S.transfersDone.includes(i));
+  let html=`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:28px;letter-spacing:2px">GW${S.currentGW} Transfers</div>
+        <div style="color:var(--text-dim);font-size:12px;margin-top:2px">Reverse points order · Lowest scorer picks first · Same position only</div>
+      </div>
+      ${allDone?`<button class="btn" onclick="nextGameweek()">Start GW${S.currentGW+1} →</button>`:`<div class="chip">${S.transfersDone.length}/${NUM_MGR} done</div>`}
+    </div>`;
+  S.transferOrder.forEach((mIdx,rank)=>{
+    const m=S.managers[mIdx];
+    const done=S.transfersDone.includes(mIdx);
+    html+=`<div class="transfer-row">
+      <div class="tr-rank">${rank+1}</div>
+      <div class="tr-info">
+        <div class="tr-name">${m.team} <span style="color:var(--text-dim);font-size:11px">· ${m.name}</span></div>
+        <div class="tr-pts">GW: ${S.gwHistory[S.currentGW-1]?.[mIdx]?.pts??'—'} pts · Season: ${S.seasonPts[mIdx]} pts</div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        ${done?'<span style="color:var(--green);font-size:12px;font-weight:600">✓ Done</span>':`
+          <button class="btn btn-ghost" style="font-size:12px;padding:6px 14px" onclick="openTransferModal(${mIdx})">Make Transfer</button>
+          <button class="btn-outline btn" style="font-size:11px;padding:6px 10px" onclick="skipTransfer(${mIdx})">Skip</button>`}
+      </div>
+    </div>`;
+  });
+  el.innerHTML=html;
+}
+
+function openTransferModal(mIdx){
+  currentTransferMgr=mIdx; trOutPlayer=null; trInPlayer=null; trFilter='ALL';
+  document.getElementById('mtr-title').textContent=`Transfer · ${S.managers[mIdx].team}`;
+  document.getElementById('mtr-sub').textContent='Select out then in (same position, undrafted pool only)';
+  document.getElementById('mtr-confirm').disabled=true;
+  document.getElementById('mtr-search').value='';
+  renderTransferOutPool(); renderTransferInPool();
+  openModal('modal-transfer');
+}
+
+function renderTransferOutPool(){
+  document.getElementById('mtr-out-pool').innerHTML=
+    S.baseTeams[currentTransferMgr].map(p=>`
+      <div class="pool-item" style="${trOutPlayer?.id===p.id?'border-color:var(--red);background:var(--red-dim)':''}" onclick="selectTrOut(${p.id})">
+        <span class="pos pos-${p.pos}">${p.pos}</span>
+        <div><div class="pi-name">${p.name}</div><div class="pi-club">${p.team}</div></div>
+        <span class="pi-pts">${p.pts}pts</span>
+      </div>`).join('');
+}
+
+function selectTrOut(pid){
+  trOutPlayer=S.baseTeams[currentTransferMgr].find(p=>p.id===pid);
+  trInPlayer=null;
+  document.getElementById('mtr-confirm').disabled=true;
+  renderTransferOutPool(); renderTransferInPool();
+}
+
+function setTrFilter(pos,el){
+  trFilter=pos;
+  document.querySelectorAll('#mtr-tabs .pos-tab').forEach(t=>t.classList.remove('active-tab'));
+  if(el)el.classList.add('active-tab');
+  renderTransferInPool();
+}
+
+function renderTransferInPool(){
+  const el=document.getElementById('mtr-in-pool');
+  if(!trOutPlayer){el.innerHTML='<div style="padding:12px;color:var(--text-dim);font-size:12px">Select a player to transfer out first.</div>';return;}
+  const search=(document.getElementById('mtr-search').value||'').toLowerCase();
+  const drafted=new Set(S.drafted);
+  const players=S.players.filter(p=>{
+    if(drafted.has(p.id))return false;
+    if(p.pos!==trOutPlayer.pos)return false;
+    if(search&&!p.name.toLowerCase().includes(search)&&!p.team.toLowerCase().includes(search))return false;
+    return true;
+  }).sort((a,b)=>b.pts-a.pts);
+  el.innerHTML=players.map(p=>`
+    <div class="pool-item" style="${trInPlayer?.id===p.id?'border-color:var(--green);background:var(--green-dim)':''}" onclick="selectTrIn(${p.id})">
+      <span class="pos pos-${p.pos}">${p.pos}</span>
+      <div><div class="pi-name">${p.name}</div><div class="pi-club">${p.team}</div></div>
+      <span class="pi-pts">${p.pts}pts</span>
+      <span class="pi-price">£${p.price}m</span>
+    </div>`).join('')||`<div style="padding:12px;color:var(--text-dim);font-size:12px">No undrafted ${trOutPlayer.pos}s available.</div>`;
+}
+
+function selectTrIn(pid){
+  trInPlayer=S.players.find(p=>p.id===pid);
+  document.getElementById('mtr-confirm').disabled=!trOutPlayer||!trInPlayer;
+  renderTransferInPool();
+}
+
+function confirmTransfer(){
+  if(!trOutPlayer||!trInPlayer)return;
+  const mIdx=currentTransferMgr;
+  S.baseTeams[mIdx]=S.baseTeams[mIdx].filter(p=>p.id!==trOutPlayer.id);
+  S.baseTeams[mIdx].push(trInPlayer);
+  S.drafted=S.drafted.filter(id=>id!==trOutPlayer.id);
+  S.drafted.push(trInPlayer.id);
+  S.transfersDone.push(mIdx);
+  saveState(); closeModal('modal-transfer');
+  showToast(`${S.managers[mIdx].name}: ${trOutPlayer.name} → ${trInPlayer.name}`,'success');
+  renderGameweek();
+}
+
+function skipTransfer(mIdx){
+  if(!S.transfersDone.includes(mIdx)) S.transfersDone.push(mIdx);
+  saveState(); renderGameweek();
+}
+
+function nextGameweek(){
+  S.currentGW++;
+  S.rotationWeek=(S.rotationWeek+1)%(NUM_MGR-1);
+  S.rotation=buildRotation(S.rotationWeek);
+  S.gwSubmissions=Array.from({length:NUM_MGR},()=>({steals:[null,null,null],saboteurs:[null,null,null],done:false}));
+  S.gwPhase='picks'; S.transferOrder=[]; S.transfersDone=[];
+  saveState();
+  document.getElementById('gw-badge').textContent=`GW${S.currentGW}`;
+  renderGameweek();
+  showToast(`Gameweek ${S.currentGW} begins!`,'success');
+}
+
+// ══════════════════════════════════════════════════════
+// LEAGUE
+// ══════════════════════════════════════════════════════
+function renderLeague(){
+  if(!S.managers.length)return;
+  const numGWs=S.gwHistory.length;
+  const sorted=S.managers.map((m,i)=>({
+    mIdx:i,m,pts:S.seasonPts[i]||0,
+    wins:S.gwHistory.reduce((s,gw)=>s+(gw?.[i]?.win?1:0),0)
+  })).sort((a,b)=>b.pts-a.pts||b.wins-a.wins);
+
+  // Rebuild GW column headers
+  const hdrEl=document.getElementById('gw-col-headers');
+  if(hdrEl) hdrEl.outerHTML=Array.from({length:numGWs},(_,g)=>`<th>GW${g+1}</th>`).join('');
+
+  document.getElementById('league-body').innerHTML=sorted.map((row,rank)=>{
+    const gwCells=S.gwHistory.map(gw=>{
+      const g=gw?.[row.mIdx];
+      if(!g)return '<td class="gw-cell">—</td>';
+      return `<td class="gw-cell ${g.win?'winner':'loser'}">${g.pts}${g.win?' ★':''}</td>`;
+    }).join('');
+    return `<tr class="${rank===0?'rank-1':''}">
+      <td style="color:var(--text-dim);font-family:monospace;font-size:11px">${rank+1}</td>
+      <td><strong>${row.m.team}</strong></td>
+      <td style="color:var(--text-dim)">${row.m.name}</td>
+      <td class="pts-small">${row.wins}W</td>
+      <td class="pts-big">${row.pts}</td>
+      ${gwCells}
+    </tr>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════
+function playerCardHTML(p){
+  return `<div class="pcc-top">
+    <span class="pos pos-${p.pos}">${p.pos}</span>
+    <div><div class="pcc-name">${p.name}</div><div class="pcc-meta">${p.full||p.name} · ${p.team} · £${p.price}m</div></div>
+  </div>
+  <div class="stat-row">
+    <div class="stat-box"><div class="stat-val">${p.pts}</div><div class="stat-lbl">Season Pts</div></div>
+    <div class="stat-box"><div class="stat-val">${p.ppg}</div><div class="stat-lbl">Pts/Game</div></div>
+    <div class="stat-box"><div class="stat-val">${p.form}</div><div class="stat-lbl">Form</div></div>
+    <div class="stat-box"><div class="stat-val">${p.sel}%</div><div class="stat-lbl">Selected By</div></div>
+  </div>`;
+}
+
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+
+let toastTimer;
+function showToast(msg,type=''){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className=`toast show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ══════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════
+buildSetupInputs();
+if(S.phase==='draft'){
+  document.getElementById('gw-badge').style.display='block';
+  document.getElementById('gw-badge').textContent='DRAFT';
+}
+if(S.phase==='gameweek'){
+  document.getElementById('gw-badge').style.display='block';
+  document.getElementById('gw-badge').textContent=`GW${S.currentGW}`;
+}
+
+// Ctrl+Shift+R to reset
+document.addEventListener('keydown',e=>{
+  if(e.ctrlKey&&e.shiftKey&&e.key==='R'){
+    if(confirm('Reset all data and start fresh?')){
+      localStorage.removeItem('saboteur_v4');
+      location.reload();
+    }
+  }
+});
+</script>
+</body>
+</html>
