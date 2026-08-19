@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Saboteur Fantasy League</title>
+<title>Serie E Sabotage</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap');
 
@@ -212,7 +212,7 @@ input:focus { border-color: var(--gold); }
 <body>
 
 <header>
-  <div class="header-logo">Saboteur <span>Fantasy League</span></div>
+  <div class="header-logo">Serie E <span>Sabotage</span></div>
   <div class="header-right">
     <div class="nav-tabs" id="nav-tabs" style="display:none">
       <div class="nav-tab active" data-screen="dashboard" onclick="showScreen('dashboard')">My Team</div>
@@ -230,13 +230,12 @@ input:focus { border-color: var(--gold); }
 <div id="screen-login" class="screen active">
 <div class="login-wrap">
   <div class="login-hero">
-    <h1>Saboteur<em>Fantasy</em></h1>
-    <p>Snake draft your XI. Steal from rivals. Plant duds. Highest points wins.</p>
+    <h1>Serie E<em>Sabotage</em></h1>
   </div>
   <div class="login-card">
     <div class="login-tabs">
       <div class="login-tab active" onclick="switchLoginTab('join')">Sign In</div>
-      <div class="login-tab" onclick="switchLoginTab('create')">Commissioner Setup</div>
+      <div class="login-tab" onclick="switchLoginTab('create')">Admin Setup</div>
     </div>
 
     <!-- JOIN -->
@@ -315,7 +314,7 @@ input:focus { border-color: var(--gold); }
   </div>
   <div class="card" style="padding:0;overflow:hidden">
     <table class="league-table">
-      <thead><tr><th>#</th><th>Team</th><th>Manager</th><th>GW Wins</th><th>Season Pts</th><th id="gw-col-headers"></th></tr></thead>
+      <thead><tr><th>#</th><th>Team</th><th>Manager</th><th>GW Wins</th><th>Latest GW</th><th>Season Pts</th><th id="gw-col-headers"></th></tr></thead>
       <tbody id="league-body"></tbody>
     </table>
   </div>
@@ -491,7 +490,7 @@ async function loadManagersForCode() {
     // Auto-find the single game in the database
     const r = await fetch(`${SUPABASE_URL}/rest/v1/games?select=id,state&limit=1`, { headers: sbHeaders() });
     const games = await r.json();
-    if (!games.length) { showToast('No league found — ask the commissioner to set it up', 'error'); return; }
+    if (!games.length) { showToast('No league found — ask the admin to set it up', 'error'); return; }
     const game = games[0];
 
     const managers = await sbGet('managers', {game_id: game.id});
@@ -670,6 +669,7 @@ async function loadDashboard() {
   const el = document.getElementById('dashboard-content');
   el.innerHTML = '<div class="loading-box"><div class="spinner"></div>Loading…</div>';
   try {
+    await loadManagerNames();
     const game = await getGame(session.gameId);
     const state = game.state;
     updateGWBadge(state);
@@ -713,7 +713,7 @@ async function loadDashboard() {
     // Commissioner controls
     if (session.isCommissioner && state.phase === 'draft' && !state.playersLoaded) {
       html += `<div class="card" style="margin-top:16px;border-color:var(--gold-dim)">
-        <div class="card-title">⚙ Commissioner Controls</div>
+        <div class="card-title">⚙ Admin Controls</div>
         <p style="font-size:13px;color:var(--text-dim);margin-bottom:12px">Load players from FPL to start the draft. Only needs to be done once.</p>
         <button class="btn btn-sm" onclick="commissionerLoadPlayers()">Load FPL Players & Start Draft</button>
         <div class="info-box" id="comm-info" style="margin-top:8px">Loading players from FPL API…</div>
@@ -723,19 +723,17 @@ async function loadDashboard() {
 
     if (session.isCommissioner && state.gwPhase === 'reveal' && state.phase === 'gameweek') {
       html += `<div class="card" style="margin-top:16px;border-color:var(--gold-dim)">
-        <div class="card-title">⚙ Commissioner Controls</div>
+        <div class="card-title">⚙ Admin Controls</div>
         <button class="btn btn-sm" style="margin-right:8px" onclick="commFinaliseGW()">Finalise GW & Open Transfers</button>
       </div>`;
     }
 
     if (session.isCommissioner && state.gwPhase === 'transfer' && state.phase === 'gameweek') {
-      const allDone = state.transferOrder.every(i => state.transfersDone.includes(i));
-      if (allDone) {
-        html += `<div class="card" style="margin-top:16px;border-color:var(--gold-dim)">
-          <div class="card-title">⚙ Commissioner Controls</div>
-          <button class="btn btn-sm" onclick="commNextGW()">Start GW${state.currentGW+1}</button>
-        </div>`;
-      }
+      html += `<div class="card" style="margin-top:16px;border-color:var(--gold-dim)">
+        <div class="card-title">⚙ Admin Controls</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px">${state.transfersDone.length}/${state.transferOrder.length} transfers done</div>
+        <button class="btn btn-sm" onclick="commNextGW()">Start GW${state.currentGW+1}</button>
+      </div>`;
     }
 
     el.innerHTML = html;
@@ -807,11 +805,24 @@ function buildRotation(w) {
 }
 
 let draftState=null, draftFilter='ALL', pendingDraftPlayer=null;
+let mgNames={}; // managerIdx -> {name, teamName}
+
+async function loadManagerNames() {
+  if(Object.keys(mgNames).length) return; // already loaded
+  try {
+    const managers = await sbGet('managers', {game_id: session.gameId});
+    managers.forEach(m => mgNames[m.manager_index] = {name: m.name, teamName: m.team_name});
+  } catch(e) { console.warn('Could not load manager names', e); }
+}
+
+function mgrName(idx) { return mgNames[idx]?.name || `Manager ${idx+1}`; }
+function mgrTeam(idx) { return mgNames[idx]?.teamName || `Team ${idx+1}`; }
 
 async function loadDraft() {
   const el=document.getElementById('draft-content');
   el.innerHTML='<div class="loading-box"><div class="spinner"></div>Loading draft…</div>';
   try {
+    await loadManagerNames();
     const game=await getGame(session.gameId);
     draftState=game.state;
     updateGWBadge(draftState);
@@ -922,7 +933,7 @@ function renderOrderList() {
   el.innerHTML=draftState.draftOrder.slice(draftState.draftPick,draftState.draftPick+14).map((o,i)=>`
     <div class="order-row ${i===0?'now':''}">
       <span class="order-pick">#${o.pickNum}</span>
-      <span class="order-name">${o.mIdx===session.managerIdx?'You':'Manager '+(o.mIdx+1)}</span>
+      <span class="order-name">${o.mIdx===session.managerIdx?'You ⭐':mgrName(o.mIdx)}</span>
       <span class="order-round">R${Math.ceil(o.pickNum/NUM_MGR)}</span>
     </div>`).join('');
 }
@@ -969,7 +980,7 @@ function renderTeamCards() {
     const isMe=i===session.managerIdx;
     return `<div class="team-card" style="${isMe?'border-color:var(--gold)':''}">
       <div class="team-card-hd">
-        <div><div class="tc-name">${isMe?session.teamName:'Team '+(i+1)}</div></div>
+        <div><div class="tc-name">${isMe?session.teamName:mgrTeam(i)}</div><div style="font-size:10px;color:var(--text-dim)">${isMe?session.name:mgrName(i)}</div></div>
         <div class="tc-count">${team.length}/11</div>
       </div>
       <div class="team-slots">${slots}</div>
@@ -1035,6 +1046,7 @@ async function loadGameweek() {
   const el=document.getElementById('gw-content');
   el.innerHTML='<div class="loading-box"><div class="spinner"></div>Loading…</div>';
   try {
+    await loadManagerNames();
     const game=await getGame(session.gameId);
     gwState=game.state;
     updateGWBadge(gwState);
@@ -1056,23 +1068,29 @@ function renderGWPicks(el) {
   const allDone=gwState.gwSubmissions.every(s=>s.done);
   const submittedCount=gwState.gwSubmissions.filter(s=>s.done).length;
 
-  const stealSlots=[0,1,2].map(i=>{
-    const pid=sub.steals[i];
-    const p=pid?gwState.players.find(x=>x.id===pid):null;
-    return `<div class="action-slot ${p?'filled steal-filled':''}">
-      <span class="as-label" style="color:var(--blue)">${i+1}</span>
-      <span class="as-content">${p?`<span class="pos pos-${p.pos}">${p.pos}</span> ${p.name} <span style="color:var(--text-dim);font-size:10px">${p.team}</span>`:`<span style="color:var(--text-dim)">Pick from target team…</span>`}</span>
-      ${p?`<span class="as-remove" onclick="removeGWPick('steal',${i})">×</span>`:''}
-    </div>`;
-  }).join('');
-
-  const sabSlots=[0,1,2].map(i=>{
-    const pid=sub.saboteurs[i];
-    const p=pid?gwState.players.find(x=>x.id===pid):null;
-    return `<div class="action-slot ${p?'filled sab-filled':''}">
-      <span class="as-label" style="color:var(--red)">${i+1}</span>
-      <span class="as-content">${p?`<span class="pos pos-${p.pos}">${p.pos}</span> ${p.name} <span style="color:var(--text-dim);font-size:10px">${p.team}</span>`:`<span style="color:var(--text-dim)">Plant a dud…</span>`}</span>
-      ${p?`<span class="as-remove" onclick="removeGWPick('sab',${i})">×</span>`:''}
+  // Combined swap slots — steal X out, dud Y in (same slot, same person)
+  const swapSlots=[0,1,2].map(i=>{
+    const stealPid=sub.steals[i];
+    const sabPid=sub.saboteurs[i];
+    const stealP=stealPid?gwState.players.find(x=>x.id===stealPid):null;
+    const sabP=sabPid?gwState.players.find(x=>x.id===sabPid):null;
+    const bothDone=stealP&&sabP;
+    return `<div class="action-slot ${bothDone?'filled steal-filled':stealP?'filled':''}" style="flex-direction:column;align-items:flex-start;gap:4px;min-height:52px;">
+      <div style="display:flex;align-items:center;gap:8px;width:100%">
+        <span class="as-label" style="color:var(--blue)">↑${i+1}</span>
+        <span class="as-content" style="color:var(--blue)">
+          ${stealP?`<span class="pos pos-${stealP.pos}">${stealP.pos}</span> <strong>${stealP.name}</strong> <span style="color:var(--text-dim);font-size:10px">${stealP.team} · into your team</span>`
+          :`<span style="color:var(--text-dim)">Pick a player to steal from ${mgrTeam(targetIdx)}…</span>`}
+        </span>
+        ${stealP?`<span class="as-remove" onclick="removeSwap(${i})">×</span>`:''}
+      </div>
+      ${stealP?`<div style="display:flex;align-items:center;gap:8px;width:100%">
+        <span class="as-label" style="color:var(--red)">↓</span>
+        <span class="as-content" style="color:var(--red)">
+          ${sabP?`<span class="pos pos-${sabP.pos}">${sabP.pos}</span> <strong>${sabP.name}</strong> <span style="color:var(--text-dim);font-size:10px">${sabP.team} · replaces them</span>`
+          :`<span style="color:var(--text-dim)">Now pick the dud replacement…</span>`}
+        </span>
+      </div>`:''}
     </div>`;
   }).join('');
 
@@ -1093,13 +1111,14 @@ function renderGWPicks(el) {
         <div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;letter-spacing:2px">Picks Submitted</div>
         <div style="color:var(--text-dim);font-size:13px;margin-top:6px">Waiting for ${NUM_MGR-submittedCount} more manager${NUM_MGR-submittedCount!==1?'s':''} to submit.</div>
         ${allDone&&session.isCommissioner?`<button class="btn btn-sm" style="margin-top:16px" onclick="commReveal()">Reveal All Picks →</button>`:''}
-        ${allDone&&!session.isCommissioner?`<div style="color:var(--gold);font-size:13px;margin-top:12px">All submitted! Commissioner will reveal picks.</div>`:''}
+        ${allDone&&!session.isCommissioner?`<div style="color:var(--gold);font-size:13px;margin-top:12px">All submitted! Admin will reveal picks.</div>`:''}
+        ${allDone&&session.isCommissioner?`<button class="btn btn-sm" style="margin-top:16px" onclick="commReveal()">Reveal All Picks →</button>`:''}
       </div>` : `
       <div class="gw-my-section">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
           <div>
             <div class="gw-section-title">Your Picks · GW${gwState.currentGW}</div>
-            <div style="font-size:11px;color:var(--text-dim)">🗡 Targeting: <strong style="color:var(--text)">Team ${targetIdx+1}</strong> · 🛡 Being sabotaged by: Manager ${sabOfMeIdx+1}</div>
+            <div style="font-size:11px;color:var(--text-dim)">🗡 Targeting: <strong style="color:var(--text)">${mgrTeam(targetIdx)}</strong> · 🛡 Being sabotaged by: <strong style="color:var(--text)">${mgrName(sabOfMeIdx)}</strong></div>
           </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
@@ -1107,19 +1126,19 @@ function renderGWPicks(el) {
             <div style="font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--blue);margin-bottom:8px">🗡 Steal 3 Players</div>
             <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px">Take from target's base team into yours</div>
             ${stealSlots}
-            <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="openGWPicker('steal')">+ Choose Steal</button>
+            <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="openGWPicker('swap')">+ Add Swap</button>
           </div>
           <div>
             <div style="font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--red);margin-bottom:8px">💣 Plant 3 Duds</div>
             <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px">Pick from undrafted pool to sabotage target</div>
             ${sabSlots}
-            <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="openGWPicker('sab')">+ Choose Saboteur</button>
+            <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="openGWPicker('swap')">+ Add Swap</button>
           </div>
         </div>
         <button class="btn ${ready?'':'btn-ghost'}" onclick="submitMyPicks()" ${ready?'':'disabled'}>
           Submit My Picks
         </button>
-        ${!ready?`<span style="font-size:11px;color:var(--text-dim);margin-left:10px">Need 3 steals + 3 saboteurs</span>`:''}
+        ${!ready?`<span style="font-size:11px;color:var(--text-dim);margin-left:10px">Complete all 3 swaps to submit</span>`:''}
       </div>`}
 
     <div class="card">
@@ -1136,14 +1155,16 @@ function renderGWPicks(el) {
 
 function openGWPicker(mode) {
   const sub=gwState.gwSubmissions[session.managerIdx];
-  const arr=mode==='steal'?sub.steals:sub.saboteurs;
-  const nextSlot=arr.findIndex(x=>!x);
-  if(nextSlot===-1){showToast(`Already have 3 ${mode==='steal'?'steals':'saboteurs'}`,'error');return;}
-  gwPickMode={slot:nextSlot,mode};
-  gwPoolFilter='ALL';
+  if(!sub.saboteurTargets) sub.saboteurTargets=[null,null,null];
+  // Find next incomplete swap slot
+  const nextSlot=sub.steals.findIndex((x,i)=>!x);
+  if(nextSlot===-1){showToast('All 3 swaps done','error');return;}
   const targetIdx=gwState.rotation[session.managerIdx];
-  document.getElementById('mgwp-title').textContent=mode==='steal'?'Steal a Player':'Plant a Saboteur';
-  document.getElementById('mgwp-sub').textContent=mode==='steal'?`Pick from Team ${targetIdx+1}'s base team`:'Pick a dud from the undrafted pool (sorted worst first)';
+  // Step 1: pick which player to steal (and remove from target)
+  gwPickMode={slot:nextSlot,mode:'steal'};
+  gwPoolFilter='ALL';
+  document.getElementById('mgwp-title').textContent=`Swap ${nextSlot+1} of 3 — Steal a player`;
+  document.getElementById('mgwp-sub').textContent=`Pick a player from ${mgrTeam(targetIdx)}'s team — they come into your XI`;
   document.getElementById('mgwp-search').value='';
   document.querySelectorAll('#mgwp-tabs .pos-tab').forEach((t,i)=>t.classList.toggle('active-tab',i===0));
   renderGWPool(); openModal('modal-gw-pick');
@@ -1175,14 +1196,18 @@ function renderGWPool(){
       return true;
     }).sort((a,b)=>b.pts-a.pts);
   } else {
+    // sab mode: pick the dud replacement — must match position of stolen player
     const taken=sub.saboteurs.filter(Boolean);
+    const stolenPid=(sub.saboteurTargets||[])[gwPickMode.slot];
+    const stolenPlayer=stolenPid?gwState.baseTeams[targetIdx]?.find(p=>p.id===stolenPid)||gwState.players.find(p=>p.id===stolenPid):null;
     players=gwState.players.filter(p=>{
       if(drafted.has(p.id)) return false;
       if(taken.includes(p.id)||allSabs.has(p.id)) return false;
+      if(stolenPlayer && p.pos!==stolenPlayer.pos) return false;
       if(gwPoolFilter!=='ALL'&&p.pos!==gwPoolFilter) return false;
       if(search&&!p.name.toLowerCase().includes(search)&&!p.team.toLowerCase().includes(search)) return false;
       return true;
-    }).sort((a,b)=>a.pts-b.pts);
+    }).sort((a,b)=>a.pts-b.pts); // worst first
   }
 
   el.innerHTML=players.map(p=>`
@@ -1198,16 +1223,37 @@ function selectGWPlayer(pid){
   if(!gwPickMode) return;
   const {slot,mode}=gwPickMode;
   const sub=gwState.gwSubmissions[session.managerIdx];
-  if(mode==='steal') sub.steals[slot]=pid;
-  else sub.saboteurs[slot]=pid;
-  closeModal('modal-gw-pick');
-  renderGWPicks(document.getElementById('gw-content'));
+  if(!sub.saboteurTargets) sub.saboteurTargets=[null,null,null];
+  const targetIdx=gwState.rotation[session.managerIdx];
+
+  if(mode==='steal'){
+    // Step 1: steal this player from target — store as steal AND saboteurTarget
+    sub.steals[slot]=pid;
+    sub.saboteurTargets[slot]=pid; // same player being removed from their team
+    const stolenPlayer=gwState.players.find(p=>p.id===pid)||gwState.baseTeams[targetIdx]?.find(p=>p.id===pid);
+    // Step 2: now pick the dud replacement (same position)
+    gwPickMode={slot,mode:'sab'};
+    gwPoolFilter='ALL';
+    document.getElementById('mgwp-title').textContent=`Swap ${slot+1} of 3 — Plant a replacement`;
+    document.getElementById('mgwp-sub').textContent=`${stolenPlayer?.name||'That player'} is stolen. Now pick a dud to fill their slot in ${mgrTeam(targetIdx)}'s team.`;
+    document.getElementById('mgwp-search').value='';
+    document.querySelectorAll('#mgwp-tabs .pos-tab').forEach((t,i)=>t.classList.toggle('active-tab',i===0));
+    renderGWPool();
+    // Stay in modal for step 2
+  } else {
+    // Step 2: pick the dud replacement
+    sub.saboteurs[slot]=pid;
+    closeModal('modal-gw-pick');
+    renderGWPicks(document.getElementById('gw-content'));
+  }
 }
 
-function removeGWPick(mode,slot){
+function removeSwap(slot){
   const sub=gwState.gwSubmissions[session.managerIdx];
-  if(mode==='steal') sub.steals[slot]=null;
-  else sub.saboteurs[slot]=null;
+  if(!sub.saboteurTargets) sub.saboteurTargets=[null,null,null];
+  sub.steals[slot]=null;
+  sub.saboteurs[slot]=null;
+  sub.saboteurTargets[slot]=null;
   renderGWPicks(document.getElementById('gw-content'));
 }
 
@@ -1243,26 +1289,48 @@ async function commReveal(){
 // ── REVEAL ──
 function buildEffectiveTeams(state){
   return state.baseTeams.map((base,mIdx)=>{
-    const sabOfMeIdx=state.rotation.indexOf(mIdx);
-    const stolenPids=state.gwSubmissions[mIdx].steals.filter(Boolean);
-    const stolenPlayers=stolenPids.map(pid=>({...state.players.find(p=>p.id===pid),isStolen:true}));
-    const sabPids=(state.gwSubmissions[sabOfMeIdx]||{saboteurs:[]}).saboteurs.filter(Boolean);
-    const sabPlayers=sabPids.map(pid=>({...state.players.find(p=>p.id===pid),isSaboteur:true}));
-    let effective=[...base].filter(p=>!stolenPids.includes(p.id));
-    sabPlayers.forEach(sab=>{
-      const samePos=effective.filter(p=>p.pos===sab.pos);
-      const tgt=samePos.length>0?samePos.sort((a,b)=>a.pts-b.pts)[0]:[...effective].sort((a,b)=>a.pts-b.pts)[0];
-      if(tgt) effective=effective.filter(p=>p.id!==tgt.id);
-      effective.push(sab);
-    });
-    effective.push(...stolenPlayers);
+    // Who is attacking mIdx this week?
+    // attackerIdx targets mIdx — find who has mIdx as their rotation target
+    const attackerIdx=state.rotation.indexOf(mIdx);
+    const attackSub=state.gwSubmissions[attackerIdx]||{steals:[],saboteurs:[],saboteurTargets:[]};
+
+    // The attacker stole these 3 players OUT of mIdx's base team
+    const stolenOutPids=(attackSub.steals||[]).filter(Boolean);
+    // The attacker planted these 3 duds IN to mIdx's team (replacing the stolen players)
+    const dudPids=(attackSub.saboteurs||[]).filter(Boolean);
+    const dudPlayers=dudPids.map((pid,i)=>({
+      ...state.players.find(p=>p.id===pid),
+      isSaboteur:true,
+      replacedId:stolenOutPids[i]||null
+    }));
+
+    // mIdx's effective team = base minus stolen players, plus duds
+    let effective=[...base].filter(p=>!stolenOutPids.includes(p.id));
+    effective.push(...dudPlayers);
     effective=effective.slice(0,11);
+
+    // Who does mIdx attack this week?
+    const myTargetIdx=state.rotation[mIdx];
+    const mySub=state.gwSubmissions[mIdx]||{steals:[],saboteurs:[]};
+    // mIdx steals these 3 players from myTargetIdx's base team
+    const stolenInPids=(mySub.steals||[]).filter(Boolean);
+    const stolenInPlayers=stolenInPids.map(pid=>({
+      ...state.players.find(p=>p.id===pid),
+      isStolen:true
+    }));
+
+    // Add stolen players to mIdx's effective team (they replace the slots freed by duds)
+    // Remove any base players that clash with stolen positions if over 11
+    effective.push(...stolenInPlayers);
+    effective=effective.slice(0,11);
+
     const gwPts=effective.reduce((s,p)=>s+(p.gwPts||0),0);
-    return {mIdx,effective,gwPts};
+    return {mIdx,effective,gwPts,attackerIdx,stolenOutPids,dudPids};
   });
 }
 
 function renderGWReveal(el){
+  const state=gwState;
   const teams=buildEffectiveTeams(gwState);
   const maxPts=Math.max(...teams.map(t=>t.gwPts));
 
@@ -1274,7 +1342,7 @@ function renderGWReveal(el){
       </div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-ghost btn-sm" onclick="refreshGWPoints()">↻ Refresh Live Points</button>
-        ${session.isCommissioner?`<button class="btn btn-sm" onclick="commFinaliseGW()">Finalise & Open Transfers →</button>`:'<div class="chip">Waiting for commissioner to finalise</div>'}
+        ${session.isCommissioner?`<button class="btn btn-sm" onclick="commFinaliseGW()">Finalise & Open Transfers →</button>`:'<div class="chip">Waiting for admin to finalise</div>'}
       </div>
     </div>
     <div class="reveal-grid">`;
@@ -1285,18 +1353,24 @@ function renderGWReveal(el){
     html+=`<div class="reveal-card" style="${isWin?'border-color:var(--gold)':''}${isMe?';box-shadow:0 0 0 1px var(--gold-dim)':''}">
       <div class="reveal-card-hd">
         <div>${isWin?'<div style="font-size:9px;color:var(--gold);letter-spacing:2px;font-weight:700;margin-bottom:2px">★ LEADER</div>':''}
-          <div class="rc-team">${isMe?session.teamName:'Team '+(mIdx+1)} ${isMe?'<span style="color:var(--gold);font-size:10px">(you)</span>':''}</div>
+          <div class="rc-team">${isMe?session.teamName:mgrTeam(mIdx)} ${isMe?'<span style="color:var(--gold);font-size:10px">(you)</span>':''}</div>
         </div>
         <div><div class="rc-pts">${gwPts}</div><div style="font-size:9px;color:var(--text-dim);text-align:right">GW PTS</div></div>
       </div>
       <div class="reveal-players">
-        ${effective.map(p=>{const pts=p.gwPts||0;return `<div class="rp-row">
-          <span class="pos pos-${p.pos}" style="font-size:8px;padding:1px 4px">${p.pos}</span>
-          <span class="rp-name">${p.name}</span>
-          ${p.isStolen?'<span class="tag-steal">STEAL</span>':''}
-          ${p.isSaboteur?'<span class="tag-sab">SAB</span>':''}
-          <span class="rp-pts ${pts>=8?'hi':pts<=2?'lo':''}">${pts}</span>
-        </div>`;}).join('')}
+        ${effective.map(p=>{
+          const pts=p.gwPts||0;
+          const replaced=p.replacedId?state.players.find(x=>x.id===p.replacedId):null;
+          return `<div class="rp-row">
+            <span class="pos pos-${p.pos}" style="font-size:8px;padding:1px 4px">${p.pos}</span>
+            <span class="rp-name">
+              ${p.isSaboteur&&replaced?`<span style="text-decoration:line-through;color:var(--text-dim);font-size:10px">${replaced.name}</span> → `:''}
+              ${p.name}
+            </span>
+            ${p.isStolen?'<span class="tag-steal">STEAL</span>':''}
+            ${p.isSaboteur?'<span class="tag-sab">SAB</span>':''}
+            <span class="rp-pts ${pts>=8?'hi':pts<=2?'lo':''}">${pts}</span>
+          </div>`;}).join('')}
       </div>
     </div>`;
   });
@@ -1356,7 +1430,7 @@ function renderGWTransfer(el){
       </div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-ghost btn-sm" onclick="loadGameweek()">↻ Refresh</button>
-        ${allDone&&session.isCommissioner?`<button class="btn btn-sm" onclick="commNextGW()">Start GW${gwState.currentGW+1} →</button>`:''}
+        ${session.isCommissioner?`<button class="btn btn-sm" onclick="commNextGW()">Start GW${gwState.currentGW+1} →</button>`:''} 
       </div>
     </div>`;
 
@@ -1378,7 +1452,8 @@ function renderGWTransfer(el){
     html+=`<div class="transfer-row" style="${isMe?'border-color:var(--gold-dim)':''}">
       <div class="tr-rank">${rank+1}</div>
       <div class="tr-info">
-        <div style="font-size:13px;font-weight:600">${isMe?session.teamName:'Team '+(i+1)} ${isMe?'<span style="color:var(--gold);font-size:10px">(you)</span>':''}</div>
+        <div style="font-size:13px;font-weight:600">${isMe?session.teamName:mgrTeam(i)} ${isMe?'<span style="color:var(--gold);font-size:10px">(you)</span>':''}</div>
+        <div style="font-size:11px;color:var(--text-dim)">${isMe?session.name:mgrName(i)}</div>
         <div style="font-size:11px;color:var(--text-dim)">GW: ${gwState.gwHistory[gwState.currentGW-1]?.[i]?.pts??'—'}pts · Season: ${gwState.seasonPts[i]}pts</div>
       </div>
       <div>${done?'<span style="color:var(--green);font-size:12px;font-weight:600">✓ Done</span>':'<span style="color:var(--text-dim);font-size:12px">Pending</span>'}</div>
@@ -1479,7 +1554,7 @@ async function commNextGW(){
     state.currentGW++;
     state.rotationWeek=(state.rotationWeek+1)%(NUM_MGR-1);
     state.rotation=buildRotation(state.rotationWeek);
-    state.gwSubmissions=Array.from({length:NUM_MGR},()=>({steals:[null,null,null],saboteurs:[null,null,null],done:false}));
+    state.gwSubmissions=Array.from({length:NUM_MGR},()=>({steals:[null,null,null],saboteurs:[null,null,null],saboteurTargets:[null,null,null],done:false}));
     state.gwPhase='picks';
     state.transferOrder=[];
     state.transfersDone=[];
@@ -1505,12 +1580,14 @@ async function loadLeague(){
     const numGWs=state.gwHistory.length;
     document.getElementById('gw-col-headers').outerHTML=Array.from({length:numGWs},(_,g)=>`<th>GW${g+1}</th>`).join('')||'<th></th>';
 
+    const lastGW=state.gwHistory.length>0?state.gwHistory[state.gwHistory.length-1]:null;
     const sorted=Array.from({length:NUM_MGR},(_,i)=>({
       mIdx:i,
       name:mgMap[i]?.name||`Manager ${i+1}`,
       team:mgMap[i]?.team_name||`Team ${i+1}`,
       pts:state.seasonPts[i]||0,
       wins:(state.gwHistory||[]).reduce((s,gw)=>s+(gw?.[i]?.win?1:0),0),
+      latestGW:lastGW?.[i]||null,
     })).sort((a,b)=>b.pts-a.pts||b.wins-a.wins);
 
     document.getElementById('league-body').innerHTML=sorted.map((row,rank)=>{
@@ -1520,11 +1597,14 @@ async function loadLeague(){
         return `<td class="gw-cell ${g.win?'winner':'loser'}">${g.pts}${g.win?' ★':''}</td>`;
       }).join('');
       const isMe=row.mIdx===session.managerIdx;
+      const latestPts=row.latestGW?.pts??'—';
+      const latestWin=row.latestGW?.win||false;
       return `<tr style="${isMe?'background:rgba(240,192,64,0.05)':''}">
         <td style="color:var(--text-dim);font-family:monospace;font-size:11px">${rank+1}</td>
         <td><strong>${row.team}</strong>${isMe?' <span style="color:var(--gold);font-size:10px">(you)</span>':''}</td>
         <td style="color:var(--text-dim)">${row.name}</td>
         <td style="font-family:monospace;font-size:12px;color:var(--text-mid)">${row.wins}W</td>
+        <td class="gw-cell ${latestWin?'winner':latestPts!=='—'?'loser':''}" style="font-size:15px">${latestPts}${latestWin?' ★':''}</td>
         <td class="pts-big">${row.pts}</td>
         ${gwCells}
       </tr>`;
