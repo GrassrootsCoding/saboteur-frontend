@@ -262,11 +262,6 @@ input:focus { border-color: var(--gold); }
     <div class="info-box" id="setup-info">Trying multiple sources to load FPL data…</div>
     <div class="error-box" id="setup-error"></div>
     <div style="font-size:11px;color:var(--text-dim);margin-top:10px">If live loading fails, use Demo Players to try the app with realistic placeholder data.</div>
-    <div style="margin-top:16px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:14px;max-width:480px;margin-left:auto;margin-right:auto">
-      <div style="font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-bottom:8px">⚙ API Backend URL (Railway)</div>
-      <input type="text" id="api-url-input" placeholder="https://your-app.up.railway.app" style="margin-bottom:6px">
-      <div style="font-size:11px;color:var(--text-dim)">Set your Railway URL after deploying the Python API. Leave blank to use localhost:5000 for local testing.</div>
-    </div>
   </div>
 </div>
 </div>
@@ -464,11 +459,9 @@ function generateDemoPlayers() {
 }
 
 // ══════════════════════════════════════════════════════
-// API CONFIG — set your Railway URL here after deploying
+// API CONFIG
 // ══════════════════════════════════════════════════════
-// Replace this with your Railway URL once deployed, e.g.:
-// const API_BASE = 'https://saboteur-api-production.up.railway.app';
-const API_BASE = window.SABOTEUR_API_URL || 'http://localhost:5000';
+const API_BASE = 'https://saboteur-api.onrender.com';
 
 async function fetchFPL() {
   const res = await Promise.race([
@@ -569,10 +562,6 @@ function buildSetupInputs() {
 }
 
 async function startApp(useDemo) {
-  // Apply custom API URL if provided
-  const apiInput = document.getElementById('api-url-input').value.trim();
-  if (apiInput) window.SABOTEUR_API_URL = apiInput.replace(/\/$/, '');
-
   const btn = document.getElementById('start-btn');
   const demoBtn = document.getElementById('demo-btn');
   const err = document.getElementById('setup-error');
