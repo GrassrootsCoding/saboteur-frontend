@@ -221,6 +221,7 @@ input:focus { border-color: var(--gold); }
       <div class="nav-tab" data-screen="league" onclick="showScreen('league')">League</div>
     </div>
     <div class="user-badge" id="user-badge"></div>
+    <button class="btn-ghost btn" id="logout-btn" style="display:none;font-size:11px;padding:4px 10px;letter-spacing:0" onclick="logout()">Sign Out</button>
     <div class="gw-badge" id="gw-badge" style="display:none">GW1</div>
   </div>
 </header>
@@ -658,6 +659,7 @@ function enterApp(state) {
   document.getElementById('nav-tabs').style.display='flex';
   document.getElementById('user-badge').style.display='block';
   document.getElementById('user-badge').textContent = `${session.name} · ${session.teamName}`;
+  document.getElementById('logout-btn').style.display='block';
   document.getElementById('gw-badge').style.display='block';
   updateGWBadge(state);
   showScreen('dashboard');
@@ -1561,6 +1563,17 @@ function showToast(msg,type=''){
   t.textContent=msg; t.className=`toast show ${type}`;
   clearTimeout(toastTimer);
   toastTimer=setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+function logout() {
+  clearSession();
+  document.getElementById('nav-tabs').style.display='none';
+  document.getElementById('user-badge').style.display='none';
+  document.getElementById('logout-btn').style.display='none';
+  document.getElementById('gw-badge').style.display='none';
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-login').classList.add('active');
+  showToast('Signed out','success');
 }
 
 // ══════════════════════════════════════════════════════
