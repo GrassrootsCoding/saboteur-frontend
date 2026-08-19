@@ -235,16 +235,12 @@ input:focus { border-color: var(--gold); }
   </div>
   <div class="login-card">
     <div class="login-tabs">
-      <div class="login-tab active" onclick="switchLoginTab('join')">Join League</div>
-      <div class="login-tab" onclick="switchLoginTab('create')">Create League</div>
+      <div class="login-tab active" onclick="switchLoginTab('join')">Sign In</div>
+      <div class="login-tab" onclick="switchLoginTab('create')">Commissioner Setup</div>
     </div>
 
     <!-- JOIN -->
     <div id="tab-join">
-      <div style="margin-bottom:12px">
-        <div class="card-title">League Code</div>
-        <input type="text" id="join-code" placeholder="Enter league code" style="text-transform:uppercase;letter-spacing:3px;font-size:16px;text-align:center">
-      </div>
       <div style="margin-bottom:12px">
         <div class="card-title">Your Name</div>
         <input type="text" id="join-name" placeholder="Select your name" readonly onclick="openNamePicker()" style="cursor:pointer">
@@ -487,18 +483,16 @@ function switchLoginTab(tab) {
 // Name picker for join screen
 let leagueManagersForPicker = [];
 function openNamePicker() {
-  const code = document.getElementById('join-code').value.trim().toUpperCase();
-  if (!code) { showToast('Enter a league code first', 'error'); return; }
-  loadManagersForCode(code);
+  loadManagersForCode();
 }
 
-async function loadManagersForCode(code) {
+async function loadManagersForCode() {
   try {
-    // Find game by code (stored in state.code)
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/games?select=id,state`, { headers: sbHeaders() });
+    // Auto-find the single game in the database
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/games?select=id,state&limit=1`, { headers: sbHeaders() });
     const games = await r.json();
-    const game = games.find(g => g.state && g.state.code === code);
-    if (!game) { showToast('League code not found', 'error'); return; }
+    if (!games.length) { showToast('No league found — ask the commissioner to set it up', 'error'); return; }
+    const game = games[0];
 
     const managers = await sbGet('managers', {game_id: game.id});
     leagueManagersForPicker = managers;
@@ -529,7 +523,7 @@ async function joinLeague() {
   const err = document.getElementById('join-error');
   err.style.display = 'none';
 
-  if (!selectedManagerForJoin) { err.textContent = 'Select your name from the league'; err.style.display='block'; return; }
+  if (!selectedManagerForJoin) { err.textContent = 'Select your name first'; err.style.display='block'; return; }
   const pin = [0,1,2,3].map(i => document.getElementById('pin'+i).value).join('');
   if (pin.length < 4) { err.textContent = 'Enter your 4-digit PIN'; err.style.display='block'; return; }
 
