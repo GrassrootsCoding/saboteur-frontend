@@ -599,7 +599,7 @@ async function createLeague() {
       currentGW: 1,
       rotation: [],
       rotationWeek: 0,
-      gwSubmissions: Array.from({length:NUM_MGR}, ()=>({steals:[null,null,null],saboteurs:[null,null,null],done:false})),
+      gwSubmissions: Array.from({length:NUM_MGR}, ()=>({steals:[null,null,null],saboteurs:[null,null,null],saboteurTargets:[null,null,null],done:false})),
       seasonPts: Array(NUM_MGR).fill(0),
       gwHistory: [],
       transferOrder: [],
@@ -1114,6 +1114,24 @@ async function loadGameweek() {
     gwState=game.state;
     updateGWBadge(gwState);
     if(gwState.phase==='draft'){el.innerHTML='<div class="loading-box">Draft not yet complete.</div>';return;}
+
+    // Fix rotation if missing or empty — can happen if draft just completed
+    if(!gwState.rotation||!gwState.rotation.length) {
+      gwState.rotation=buildRotation(gwState.rotationWeek||0);
+      if(session.isCommissioner) {
+        await saveGame(session.gameId, gwState);
+        showToast('Rotation initialised','success');
+      }
+    }
+
+    // Fix gwSubmissions if missing saboteurTargets
+    gwState.gwSubmissions=gwState.gwSubmissions.map(s=>({
+      steals: s.steals||[null,null,null],
+      saboteurs: s.saboteurs||[null,null,null],
+      saboteurTargets: s.saboteurTargets||[null,null,null],
+      done: s.done||false,
+    }));
+
     if(gwState.gwPhase==='picks') renderGWPicks(el);
     else if(gwState.gwPhase==='reveal') renderGWReveal(el);
     else if(gwState.gwPhase==='transfer') renderGWTransfer(el);
@@ -1125,7 +1143,18 @@ async function loadGameweek() {
 // ── MY PICKS ──
 function renderGWPicks(el) {
   const mIdx=session.managerIdx;
+  // Guard against uninitialised gwSubmissions
+  if(!gwState.gwSubmissions||!gwState.gwSubmissions[mIdx]) {
+    el.innerHTML='<div class="loading-box">Game state not ready — try refreshing.</div>';
+    return;
+  }
   const sub=gwState.gwSubmissions[mIdx];
+  if(!sub.saboteurTargets) sub.saboteurTargets=[null,null,null];
+  // Guard against uninitialised rotation
+  if(!gwState.rotation||!gwState.rotation.length) {
+    el.innerHTML='<div class="loading-box">Rotation not set — admin needs to load players first.</div>';
+    return;
+  }
   const targetIdx=gwState.rotation[mIdx];
   const sabOfMeIdx=gwState.rotation.indexOf(mIdx);
   const allDone=gwState.gwSubmissions.every(s=>s.done);
@@ -1219,10 +1248,11 @@ function renderGWPicks(el) {
 function openGWPicker(mode) {
   const sub=gwState.gwSubmissions[session.managerIdx];
   if(!sub.saboteurTargets) sub.saboteurTargets=[null,null,null];
+  const targetIdx=gwState.rotation[session.managerIdx];
+  if(targetIdx===undefined||targetIdx===null){showToast('Rotation not set — contact admin','error');return;}
   // Find next incomplete swap slot
   const nextSlot=sub.steals.findIndex((x,i)=>!x);
   if(nextSlot===-1){showToast('All 3 swaps done','error');return;}
-  const targetIdx=gwState.rotation[session.managerIdx];
   // Step 1: pick which player to steal (and remove from target)
   gwPickMode={slot:nextSlot,mode:'steal'};
   gwPoolFilter='ALL';
