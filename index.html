@@ -539,7 +539,7 @@ async function joinLeague() {
       managerIdx: mgr.manager_index,
       name: mgr.name,
       teamName: mgr.team_name,
-      isCommissioner: mgr.manager_index === 0,
+      isCommissioner: mgr.manager_index === 5,
     });
     enterApp(game.state);
   } catch(e) {
@@ -635,7 +635,7 @@ async function createLeague() {
       managerIdx: 0,
       name: myMgr.name,
       teamName: myMgr.team_name,
-      isCommissioner: true,
+      isCommissioner: mgr.manager_index === 5,
     });
     setTimeout(() => enterApp(game.state), 1500);
 
