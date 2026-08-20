@@ -139,7 +139,7 @@ input:focus { border-color: var(--gold); }
 .order-pick { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-dim); width: 24px; }
 .order-name { flex: 1; font-weight: 500; }
 .order-round { font-size: 10px; color: var(--text-dim); }
-.team-cards { display: flex; flex-direction: column; gap: 8px; max-height: 600px; overflow-y: auto; }
+.team-cards { display: flex; flex-direction: column; gap: 0; }
 .team-card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
 .team-card-hd { padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; background: var(--surface2); border-bottom: 1px solid var(--border); }
 .tc-name { font-size: 12px; font-weight: 600; }
@@ -247,10 +247,10 @@ input:focus { border-color: var(--gold); }
       <div style="margin-bottom:16px">
         <div class="card-title">Your PIN</div>
         <div class="pin-inputs">
-          <input type="password" class="pin-input" maxlength="1" id="pin0" oninput="pinNext(0)">
-          <input type="password" class="pin-input" maxlength="1" id="pin1" oninput="pinNext(1)">
-          <input type="password" class="pin-input" maxlength="1" id="pin2" oninput="pinNext(2)">
-          <input type="password" class="pin-input" maxlength="1" id="pin3" oninput="pinNext(3)">
+          <input type="tel" inputmode="numeric" pattern="[0-9]*" class="pin-input" maxlength="1" id="pin0" oninput="pinNext(0)">
+          <input type="tel" inputmode="numeric" pattern="[0-9]*" class="pin-input" maxlength="1" id="pin1" oninput="pinNext(1)">
+          <input type="tel" inputmode="numeric" pattern="[0-9]*" class="pin-input" maxlength="1" id="pin2" oninput="pinNext(2)">
+          <input type="tel" inputmode="numeric" pattern="[0-9]*" class="pin-input" maxlength="1" id="pin3" oninput="pinNext(3)">
         </div>
       </div>
       <button class="btn" style="width:100%" onclick="joinLeague()">Join League</button>
@@ -897,12 +897,12 @@ function renderDraftScreen(el) {
           <div style="text-align:center;margin-top:24px;padding:20px;background:var(--surface);border:1px solid var(--border);border-radius:8px">
             <div style="font-size:32px;margin-bottom:8px">⏳</div>
             <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;letter-spacing:2px;color:var(--text-dim)">Waiting for ${mgrName(cur.mIdx)}</div>
-            <div style="font-size:12px;color:var(--text-dim);margin-top:6px">Auto-refreshes every 10 seconds</div>
+            <div style="font-size:12px;color:var(--text-dim);margin-top:6px">Use the ↻ button when you're ready to check</div>
           </div>
         </div>
       </div>`;
     renderTeamCards();
-    setTimeout(()=>{ if(document.getElementById('screen-draft').classList.contains('active')) loadDraft(); }, 10000);
+    // Auto-refresh removed — use the ↻ button to refresh manually
     return;
   }
 
@@ -1002,25 +1002,53 @@ function renderTeamCards() {
   const el=document.getElementById('team-cards');
   if(!el) return;
   el.innerHTML=draftState.baseTeams.map((team,i)=>{
-    const byPos={};
-    team.forEach(p=>{if(!byPos[p.pos])byPos[p.pos]=[];byPos[p.pos].push(p);});
-    const counts={GK:0,DEF:0,MID:0,FWD:0};
-    const slots=POS_ORDER.map(pos=>{
-      const p=byPos[pos]?byPos[pos][counts[pos]]:null; counts[pos]++;
-      return `<div class="team-slot">
-        <span class="pos pos-${pos}" style="font-size:8px;padding:1px 3px">${pos}</span>
-        ${p?`<span class="slot-name">${p.name}</span>`:`<span class="slot-name slot-empty">—</span>`}
+    const isMe=i===session.managerIdx;
+    const isCurrent=draftState.draftPick < draftState.draftOrder.length && draftState.draftOrder[draftState.draftPick].mIdx===i;
+
+    // Show all picks made so far, grouped by position
+    const byPos={GK:[],DEF:[],MID:[],FWD:[]};
+    team.forEach(p=>byPos[p.pos].push(p));
+
+    // Full 11 slots in position order
+    const slots=POS_ORDER.map((pos,slotIdx)=>{
+      const filled=byPos[pos].shift();
+      return `<div style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-bottom:1px solid var(--surface2);font-size:11px;">
+        <span class="pos pos-${pos}" style="font-size:8px;padding:1px 3px;flex-shrink:0">${pos}</span>
+        ${filled
+          ? `<span style="flex:1;color:var(--text)">${filled.name}</span>
+             <span style="font-size:10px;color:var(--text-dim);font-family:monospace">£${filled.price}m</span>`
+          : `<span style="flex:1;color:var(--border2);font-style:italic">—</span>`}
       </div>`;
     }).join('');
-    const isMe=i===session.managerIdx;
-    return `<div class="team-card" style="${isMe?'border-color:var(--gold)':''}">
-      <div class="team-card-hd">
-        <div><div class="tc-name">${isMe?session.teamName:mgrTeam(i)}</div><div style="font-size:10px;color:var(--text-dim)">${isMe?session.name:mgrName(i)}</div></div>
-        <div class="tc-count">${team.length}/11</div>
+
+    return `<div class="team-card" style="margin-bottom:8px;${isMe?'border-color:var(--gold)':isCurrent?'border-color:var(--blue)':''}">
+      <div class="team-card-hd" style="cursor:pointer" onclick="toggleTeamCard(${i})">
+        <div>
+          <div class="tc-name" style="${isMe?'color:var(--gold)':''}">
+            ${isMe?'⭐ ':''}${isMe?session.teamName:mgrTeam(i)}
+            ${isCurrent?'<span style="font-size:9px;background:var(--blue);color:#fff;padding:1px 5px;border-radius:2px;margin-left:4px;font-weight:700">PICKING</span>':''}
+          </div>
+          <div style="font-size:10px;color:var(--text-dim)">${isMe?session.name:mgrName(i)}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="tc-count">${team.length}/11</div>
+          <div id="tc-arrow-${i}" style="font-size:12px;color:var(--text-dim);transition:transform 0.2s">${i===session.managerIdx?'▲':'▼'}</div>
+        </div>
       </div>
-      <div class="team-slots">${slots}</div>
+      <div id="tc-body-${i}" style="display:${i===session.managerIdx?'block':'none'}">
+        <div style="padding:4px 0">${slots}</div>
+      </div>
     </div>`;
   }).join('');
+}
+
+function toggleTeamCard(i) {
+  const body=document.getElementById('tc-body-'+i);
+  const arrow=document.getElementById('tc-arrow-'+i);
+  if(!body||!arrow) return;
+  const isOpen=body.style.display!=='none';
+  body.style.display=isOpen?'none':'block';
+  arrow.style.transform=isOpen?'':'rotate(180deg)';
 }
 
 function openDraftModal(pid) {
