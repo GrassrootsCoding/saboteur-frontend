@@ -855,32 +855,53 @@ async function loadDraft() {
 function renderDraftScreen(el) {
   const cur=draftState.draftOrder[draftState.draftPick];
   const isMyTurn=cur.mIdx===session.managerIdx;
-  const curMgr=draftState; // managers loaded from DB separately below
   const round=Math.ceil(cur.pickNum/NUM_MGR);
+  const pc=draftState.posCounts[session.managerIdx];
 
-  // Get manager names from state (we store them in DB, but for display let's use baseTeams index)
-  // We'll pass manager info via session for current user
   const turnBanner=`
     <div class="turn-bar">
       <div>
-        <div class="turn-who" id="turn-who">Pick #${cur.pickNum}</div>
-        <div class="turn-meta">Round ${round} · ${isMyTurn?'<strong style="color:var(--gold)">YOUR TURN</strong>':'Waiting for another manager…'}</div>
+        <div class="turn-who">${isMyTurn?'YOUR TURN':mgrName(cur.mIdx)+' is picking'}</div>
+        <div class="turn-meta">Pick #${cur.pickNum} · Round ${round} of 11 · ${draftState.draftOrder.length - draftState.draftPick} picks remaining</div>
       </div>
-      <div>
-        <div class="turn-pick-num">${cur.pickNum}</div>
-        <div class="turn-pick-lbl">Overall Pick</div>
+      <div style="display:flex;gap:16px;align-items:center">
+        ${isMyTurn?`<div style="text-align:right">
+          <div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Your needs</div>
+          <div style="font-size:11px;display:flex;gap:8px">
+            ${pc.GK<1?'<span style="color:var(--gold)">GK</span>':''}
+            ${pc.DEF<4?`<span style="color:var(--gold)">DEF(${4-pc.DEF})</span>`:''}
+            ${pc.MID<3?`<span style="color:var(--gold)">MID(${3-pc.MID})</span>`:''}
+            ${pc.FWD<3?`<span style="color:var(--gold)">FWD(${3-pc.FWD})</span>`:''}
+          </div>
+        </div>`:''}
+        <div>
+          <div class="turn-pick-num">${cur.pickNum}</div>
+          <div class="turn-pick-lbl">Overall Pick</div>
+        </div>
       </div>
     </div>`;
 
+  // Build full draft order table - all 66 picks
+  const fullOrder = buildFullOrderHTML();
+
   if(!isMyTurn) {
     el.innerHTML=`${turnBanner}
-      <div class="waiting-screen">
-        <div style="font-size:48px;margin-bottom:16px">⏳</div>
-        <h2>Waiting for Pick #${cur.pickNum}</h2>
-        <div style="color:var(--text-dim);font-size:13px;margin-bottom:20px">Another manager is making their pick. The page will update automatically.</div>
-        <button class="btn btn-ghost btn-sm" onclick="loadDraft()">↻ Refresh</button>
+      <div style="display:grid;grid-template-columns:300px 1fr;gap:16px;margin-top:4px">
+        <div>
+          <div class="panel-hd">Full Draft Order</div>
+          <div style="max-height:520px;overflow-y:auto">${fullOrder}</div>
+        </div>
+        <div>
+          <div class="panel-hd">Teams <button class="btn-ghost btn" style="float:right;font-size:11px;padding:3px 8px" onclick="loadDraft()">↻ Refresh</button></div>
+          <div class="team-cards" id="team-cards"></div>
+          <div style="text-align:center;margin-top:24px;padding:20px;background:var(--surface);border:1px solid var(--border);border-radius:8px">
+            <div style="font-size:32px;margin-bottom:8px">⏳</div>
+            <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;letter-spacing:2px;color:var(--text-dim)">Waiting for ${mgrName(cur.mIdx)}</div>
+            <div style="font-size:12px;color:var(--text-dim);margin-top:6px">Auto-refreshes every 10 seconds</div>
+          </div>
+        </div>
       </div>`;
-    // Auto-poll every 10s
+    renderTeamCards();
     setTimeout(()=>{ if(document.getElementById('screen-draft').classList.contains('active')) loadDraft(); }, 10000);
     return;
   }
@@ -888,15 +909,8 @@ function renderDraftScreen(el) {
   el.innerHTML=`${turnBanner}
     <div class="draft-layout">
       <div>
-        <div class="panel-hd">Draft Order</div>
-        <div class="order-list" id="order-list"></div>
-        <div style="margin-top:16px"><div class="panel-hd">Needs</div>
-        <div style="font-size:12px;color:var(--text-dim);line-height:2">
-          🧤 GK: <strong style="color:${draftState.posCounts[session.managerIdx].GK<1?'var(--gold)':'var(--text-dim)'}">${1-draftState.posCounts[session.managerIdx].GK} left</strong><br>
-          🛡 DEF: <strong style="color:${draftState.posCounts[session.managerIdx].DEF<4?'var(--gold)':'var(--text-dim)'}">${4-draftState.posCounts[session.managerIdx].DEF} left</strong><br>
-          ⚡ MID: <strong style="color:${draftState.posCounts[session.managerIdx].MID<3?'var(--gold)':'var(--text-dim)'}">${3-draftState.posCounts[session.managerIdx].MID} left</strong><br>
-          ⚽ FWD: <strong style="color:${draftState.posCounts[session.managerIdx].FWD<3?'var(--gold)':'var(--text-dim)'}">${3-draftState.posCounts[session.managerIdx].FWD} left</strong>
-        </div></div>
+        <div class="panel-hd">Full Draft Order</div>
+        <div style="max-height:520px;overflow-y:auto" id="order-list">${fullOrder}</div>
       </div>
       <div>
         <div class="panel-hd">Player Pool <span id="pool-count" style="color:var(--gold);font-family:monospace;font-size:11px"></span></div>
@@ -916,9 +930,39 @@ function renderDraftScreen(el) {
       </div>
     </div>`;
 
-  renderOrderList();
   renderDraftPool();
   renderTeamCards();
+}
+
+function buildFullOrderHTML() {
+  // Group picks by round for display
+  let html = '';
+  let currentRound = 0;
+  draftState.draftOrder.forEach((o, idx) => {
+    const round = Math.ceil(o.pickNum / NUM_MGR);
+    const isDone = idx < draftState.draftPick;
+    const isCurrent = idx === draftState.draftPick;
+    const isMe = o.mIdx === session.managerIdx;
+
+    if (round !== currentRound) {
+      if (currentRound > 0) html += '</div>';
+      html += `<div style="margin-bottom:8px">
+        <div style="font-size:9px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);padding:4px 8px;margin-bottom:2px">Round ${round}</div>`;
+      currentRound = round;
+    }
+
+    html += `<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:4px;font-size:12px;
+      border:1px solid ${isCurrent?'var(--gold-dim)':'transparent'};
+      background:${isCurrent?'rgba(240,192,64,0.08)':isDone?'transparent':'transparent'};
+      opacity:${isDone?0.4:1}">
+      <span style="font-family:monospace;font-size:10px;color:var(--text-dim);min-width:22px">#${o.pickNum}</span>
+      <span style="flex:1;font-weight:${isMe?'600':'400'};color:${isMe?'var(--gold)':isCurrent?'var(--text)':'var(--text-mid)'}">${mgrName(o.mIdx)}</span>
+      ${isDone?`<span style="font-size:10px;color:var(--text-dim)">${(draftState.baseTeams[o.mIdx][Math.floor(idx/NUM_MGR)]||{name:''}).name||''}</span>`:''}
+      ${isCurrent?'<span style="font-size:9px;background:var(--gold);color:#000;padding:1px 5px;border-radius:2px;font-weight:700">NOW</span>':''}
+    </div>`;
+  });
+  html += '</div>';
+  return html;
 }
 
 function setDraftFilter(pos,el) {
@@ -927,16 +971,7 @@ function setDraftFilter(pos,el) {
   el.classList.add('active-tab'); renderDraftPool();
 }
 
-function renderOrderList() {
-  const el=document.getElementById('order-list');
-  if(!el) return;
-  el.innerHTML=draftState.draftOrder.slice(draftState.draftPick,draftState.draftPick+14).map((o,i)=>`
-    <div class="order-row ${i===0?'now':''}">
-      <span class="order-pick">#${o.pickNum}</span>
-      <span class="order-name">${o.mIdx===session.managerIdx?'You ⭐':mgrName(o.mIdx)}</span>
-      <span class="order-round">R${Math.ceil(o.pickNum/NUM_MGR)}</span>
-    </div>`).join('');
-}
+// renderOrderList replaced by buildFullOrderHTML
 
 function renderDraftPool() {
   const search=(document.getElementById('pool-search')?.value||'').toLowerCase();
