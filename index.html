@@ -1143,6 +1143,16 @@ async function loadGameweek() {
 // ── MY PICKS ──
 function renderGWPicks(el) {
   const mIdx=session.managerIdx;
+  // DEBUG - remove after fixing
+  console.log('DEBUG renderGWPicks:', {
+    sessionManagerIdx: session.managerIdx,
+    sessionName: session.name,
+    rotation: gwState.rotation,
+    targetIdx: gwState.rotation?.[mIdx],
+    gwSubmissions: gwState.gwSubmissions?.map((s,i)=>({i, done:s.done})),
+    gwPhase: gwState.gwPhase,
+    phase: gwState.phase,
+  });
   // Guard against uninitialised gwSubmissions
   if(!gwState.gwSubmissions||!gwState.gwSubmissions[mIdx]) {
     el.innerHTML='<div class="loading-box">Game state not ready — try refreshing.</div>';
