@@ -721,6 +721,14 @@ async function loadDashboard() {
       </div>`;
     }
 
+    if (session.isCommissioner && state.gwPhase === 'xi' && state.phase === 'gameweek') {
+      const allXIDone = state.gwSubmissions.every(s=>s.xiDone);
+      html += `<div class="card" style="margin-top:16px;border-color:var(--gold-dim)">
+        <div class="card-title">⚙ Admin Controls</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px">${state.gwSubmissions.filter(s=>s.xiDone).length}/${NUM_MGR} XIs confirmed</div>
+        <button class="btn btn-sm" onclick="commShowReveal()">Reveal & Score →</button>
+      </div>`;
+    }
     if (session.isCommissioner && state.gwPhase === 'reveal' && state.phase === 'gameweek') {
       html += `<div class="card" style="margin-top:16px;border-color:var(--gold-dim)">
         <div class="card-title">⚙ Admin Controls</div>
@@ -1130,9 +1138,12 @@ async function loadGameweek() {
       saboteurs: s.saboteurs||[null,null,null],
       saboteurTargets: s.saboteurTargets||[null,null,null],
       done: s.done||false,
+      selectedXI: s.selectedXI||[],
+      xiDone: s.xiDone||false,
     }));
 
     if(gwState.gwPhase==='picks') renderGWPicks(el);
+    else if(gwState.gwPhase==='xi') renderXIPicks(el);
     else if(gwState.gwPhase==='reveal') renderGWReveal(el);
     else if(gwState.gwPhase==='transfer') renderGWTransfer(el);
   } catch(e) {
@@ -1143,16 +1154,7 @@ async function loadGameweek() {
 // ── MY PICKS ──
 function renderGWPicks(el) {
   const mIdx=session.managerIdx;
-  // DEBUG - remove after fixing
-  console.log('DEBUG renderGWPicks:', {
-    sessionManagerIdx: session.managerIdx,
-    sessionName: session.name,
-    rotation: gwState.rotation,
-    targetIdx: gwState.rotation?.[mIdx],
-    gwSubmissions: gwState.gwSubmissions?.map((s,i)=>({i, done:s.done})),
-    gwPhase: gwState.gwPhase,
-    phase: gwState.phase,
-  });
+
   // Guard against uninitialised gwSubmissions
   if(!gwState.gwSubmissions||!gwState.gwSubmissions[mIdx]) {
     el.innerHTML='<div class="loading-box">Game state not ready — try refreshing.</div>';
@@ -1210,28 +1212,32 @@ function renderGWPicks(el) {
     ${sub.done ? `
       <div style="background:var(--green-dim);border:1px solid var(--green);border-radius:8px;padding:24px;text-align:center;margin-bottom:16px">
         <div style="font-size:32px;margin-bottom:8px">✅</div>
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;letter-spacing:2px">Picks Submitted</div>
-        <div style="color:var(--text-dim);font-size:13px;margin-top:6px">Waiting for ${NUM_MGR-submittedCount} more manager${NUM_MGR-submittedCount!==1?'s':''} to submit.</div>
-        ${allDone&&session.isCommissioner?`<button class="btn btn-sm" style="margin-top:16px" onclick="commReveal()">Reveal All Picks →</button>`:''}
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;letter-spacing:2px">${session.name} — Picks Submitted</div>
+        <div style="color:var(--text-dim);font-size:13px;margin-top:6px">Your swaps against ${mgrTeam(targetIdx)} are locked in. Waiting for ${NUM_MGR-submittedCount} more manager${NUM_MGR-submittedCount!==1?'s':''} to submit.</div>
+        ${allDone&&session.isCommissioner?`<button class="btn btn-sm" style="margin-top:16px" onclick="commReveal()">Close Swaps & Open XI Picks →</button>`:''}
         ${allDone&&!session.isCommissioner?`<div style="color:var(--gold);font-size:13px;margin-top:12px">All submitted! Admin will reveal picks.</div>`:''}
-        ${allDone&&session.isCommissioner?`<button class="btn btn-sm" style="margin-top:16px" onclick="commReveal()">Reveal All Picks →</button>`:''}
+        ${allDone&&session.isCommissioner?`<button class="btn btn-sm" style="margin-top:16px" onclick="commReveal()">Close Swaps & Open XI Picks →</button>`:''}
       </div>` : `
       <div class="gw-my-section">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
           <div>
-            <div class="gw-section-title">Your Picks · GW${gwState.currentGW}</div>
-            <div style="font-size:11px;color:var(--text-dim)">🗡 Targeting: <strong style="color:var(--text)">${mgrTeam(targetIdx)}</strong> · 🛡 Being sabotaged by: <strong style="color:var(--text)">${mgrName(sabOfMeIdx)}</strong></div>
+            <div class="gw-section-title">${session.name} · Your GW${gwState.currentGW} Picks</div>
+            <div style="font-size:11px;color:var(--text-dim)">
+            🗡 <strong style="color:var(--blue)">You are stealing from: ${mgrTeam(targetIdx)}</strong>
+            &nbsp;·&nbsp;
+            🛡 <strong style="color:var(--red)">${mgrName(sabOfMeIdx)} is sabotaging you</strong>
+          </div>
           </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
           <div>
-            <div style="font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--blue);margin-bottom:8px">🗡 Steal 3 Players</div>
+            <div style="font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--blue);margin-bottom:8px">🗡 You steal from ${mgrTeam(targetIdx)}</div>
             <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px">Take from target's base team into yours</div>
             ${swapSlots}
             <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="openGWPicker('swap')">+ Add Swap</button>
           </div>
           <div>
-            <div style="font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--red);margin-bottom:8px">💣 Plant 3 Duds</div>
+            <div style="font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--red);margin-bottom:8px">💣 You plant duds in ${mgrTeam(targetIdx)}</div>
             <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px">Pick from undrafted pool to sabotage target</div>
             
             <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="openGWPicker('swap')">+ Add Swap</button>
@@ -1382,24 +1388,178 @@ async function commReveal(){
   try {
     const game=await getGame(session.gameId);
     const state=game.state;
+    state.gwPhase='xi';
+    await saveGame(session.gameId,state);
+    gwState=state;
+    renderXIPicks(document.getElementById('gw-content'));
+    showToast('Swaps closed — everyone pick your XI','success');
+  } catch(e){showToast('Error: '+e.message,'error');}
+}
+
+
+// ── XI PICKS ──
+function buildAvailablePool(state, mIdx) {
+  const attackerIdx=state.rotation.indexOf(mIdx);
+  const attackSub=state.gwSubmissions[attackerIdx]||{steals:[],saboteurs:[],saboteurTargets:[]};
+  const stolenOutPids=(attackSub.steals||[]).filter(Boolean);
+  const dudPids=(attackSub.saboteurs||[]).filter(Boolean);
+  const dudPlayers=dudPids.map((pid,i)=>({
+    ...state.players.find(p=>p.id===pid),
+    isSaboteur:true,
+    replacedId:(attackSub.saboteurTargets||[])[i]||null
+  }));
+  const myTargetIdx=state.rotation[mIdx];
+  const mySub=state.gwSubmissions[mIdx]||{steals:[]};
+  const stolenInPids=(mySub.steals||[]).filter(Boolean);
+  const stolenInPlayers=stolenInPids.map(pid=>({
+    ...state.players.find(p=>p.id===pid)||state.baseTeams[myTargetIdx]?.find(p=>p.id===pid),
+    isStolen:true
+  }));
+  const base=state.baseTeams[mIdx].filter(p=>!stolenOutPids.includes(p.id));
+  return [...base,...dudPlayers,...stolenInPlayers];
+}
+
+function renderXIPicks(el) {
+  const mIdx=session.managerIdx;
+  const sub=gwState.gwSubmissions[mIdx];
+  const allXIDone=gwState.gwSubmissions.every(s=>s.xiDone);
+  const xiDoneCount=gwState.gwSubmissions.filter(s=>s.xiDone).length;
+  const available=buildAvailablePool(gwState,mIdx);
+
+  // Split into forced (duds) and choosable players
+  const forcedDuds=available.filter(p=>p.isSaboteur);
+  const choosable=available.filter(p=>!p.isSaboteur);
+  const forcedIds=forcedDuds.map(p=>p.id);
+  const neededFromPool=11-forcedDuds.length; // how many to pick from choosable
+
+  // selected = just the chosen ones (not duds - those are forced)
+  const chosen=sub.selectedXI ? sub.selectedXI.filter(pid=>!forcedIds.includes(pid)) : [];
+  // full XI = forced duds + chosen
+  const fullXI=[...forcedIds,...chosen];
+
+  const posOrder=['GK','DEF','DEF','DEF','DEF','MID','MID','MID','FWD','FWD','FWD'];
+
+  let html=`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:28px;letter-spacing:2px">GW${gwState.currentGW} · Pick Your XI</div>
+        <div style="color:var(--text-dim);font-size:12px;margin-top:2px">
+          ${forcedDuds.length>0?`<span style="color:var(--red)">💣 ${forcedDuds.length} saboteur${forcedDuds.length>1?'s are':'is'} forced into your XI</span> · `:''}
+          Pick ${neededFromPool} more from your pool · ${xiDoneCount}/${NUM_MGR} confirmed
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="loadGameweek()">↻ Refresh</button>
+    </div>`;
+
+  if(sub.xiDone) {
+    const displayXI=fullXI.map(pid=>available.find(p=>p.id===pid)).filter(Boolean);
+    html+=`<div style="background:var(--green-dim);border:1px solid var(--green);border-radius:8px;padding:20px;margin-bottom:16px">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;letter-spacing:2px;margin-bottom:12px">✅ ${session.name} — XI Confirmed</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${displayXI.map(p=>'<div style="display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid '+(p.isStolen?'var(--blue)':p.isSaboteur?'var(--red)':'var(--border)')+';border-radius:4px;padding:6px 8px;font-size:11px"><span class="pos pos-'+p.pos+'">'+p.pos+'</span>'+p.name+(p.isStolen?' <span class="tag-steal" style="font-size:8px">STEAL</span>':'')+(p.isSaboteur?' <span class="tag-sab" style="font-size:8px">SAB</span>':'')+'</div>').join('')}
+      </div>
+      ${allXIDone&&session.isCommissioner?'<button class="btn btn-sm" style="margin-top:16px" onclick="commShowReveal()">Reveal & Score →</button>':''}
+      ${allXIDone&&!session.isCommissioner?'<div style="color:var(--gold);font-size:13px;margin-top:12px">All confirmed — waiting for admin to reveal.</div>':''}
+    </div>`;
+  } else {
+    html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div>
+        ${forcedDuds.length>0?`
+        <div style="margin-bottom:12px">
+          <div style="font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--red);margin-bottom:6px">💣 Forced Starters (saboteurs)</div>
+          <div style="display:flex;flex-direction:column;gap:3px">
+            ${forcedDuds.map(p=>'<div style="display:flex;align-items:center;gap:8px;background:var(--red-dim);border:1px solid var(--red);border-radius:4px;padding:7px 10px;font-size:11px"><span class="pos pos-'+p.pos+'">'+p.pos+'</span><div style="flex:1"><div style="font-size:12px;font-weight:500">'+p.name+'</div><div style="font-size:10px;color:var(--text-dim)">'+p.team+' · '+p.pts+'pts season</div></div><span style="font-size:10px;color:var(--red);font-weight:600">FORCED</span></div>').join('')}
+          </div>
+        </div>`:''}
+        <div style="font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px">Choose ${neededFromPool} from your pool (${choosable.length} available)</div>
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px">Click to add · <span style="color:var(--blue)">Blue = stolen</span></div>
+        <div style="display:flex;flex-direction:column;gap:3px;max-height:400px;overflow-y:auto">
+          ${choosable.map(p=>{
+            const inXI=chosen.includes(p.id);
+            return '<div onclick="toggleXIPlayer('+p.id+')" style="display:flex;align-items:center;gap:8px;background:'+(inXI?'var(--surface3)':'var(--surface2)')+';border:1px solid '+(inXI?'var(--gold)':p.isStolen?'var(--blue)':'var(--border)')+';border-radius:4px;padding:7px 10px;cursor:pointer;opacity:'+(!inXI&&chosen.length>=neededFromPool?0.4:1)+'"><span class="pos pos-'+p.pos+'">'+p.pos+'</span><div style="flex:1"><div style="font-size:12px;font-weight:500">'+p.name+(p.isStolen?' <span class="tag-steal" style="font-size:8px;margin-left:4px">STEAL</span>':'')+'</div><div style="font-size:10px;color:var(--text-dim)">'+p.team+' · '+p.pts+'pts season</div></div>'+(inXI?'<span style="color:var(--gold);font-size:14px">✓</span>':'')+'</div>';
+          }).join('')}
+        </div>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-bottom:8px">Your XI (${fullXI.length}/11)</div>
+        <div style="display:flex;flex-direction:column;gap:3px;margin-bottom:12px">
+          ${posOrder.map((pos,i)=>{
+            const posInXI=fullXI.map(pid=>available.find(p=>p.id===pid)).filter(p=>p&&p.pos===pos);
+            const slotNum=posOrder.slice(0,i+1).filter(p=>p===pos).length;
+            const p=posInXI[slotNum-1]||null;
+            const isForced=p&&forcedIds.includes(p.id);
+            return '<div style="display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid '+(p?isForced?'var(--red)':'var(--border2)':'var(--border)')+';border-radius:4px;padding:7px 10px;font-size:11px;'+(p?'':'border-style:dashed')+'"><span class="pos pos-'+pos+'">'+pos+'</span>'+(p?'<span style="flex:1;color:var(--text)">'+p.name+(p.isStolen?' <span class="tag-steal" style="font-size:8px">STEAL</span>':'')+(isForced?' <span class="tag-sab" style="font-size:8px">SAB</span>':'')+'</span>'+(isForced?'<span style="font-size:9px;color:var(--red);font-weight:600">FORCED</span>':'<span onclick="toggleXIPlayer('+p.id+')" style="color:var(--text-dim);cursor:pointer;font-size:16px;padding:0 4px">×</span>'):'<span style="color:var(--border2);font-style:italic;flex:1">empty</span>')+'</div>';
+          }).join('')}
+        </div>
+        <button class="btn '+(fullXI.length===11?'':'btn-ghost')+'" onclick="confirmXI()" '+(fullXI.length===11?'':'disabled')+'>Confirm My XI</button>
+        ${fullXI.length!==11?'<div style="font-size:11px;color:var(--text-dim);margin-top:6px">Pick '+neededFromPool+' players to complete your XI</div>':''}
+      </div>
+    </div>`;
+  }
+  el.innerHTML=html;
+}
+
+function toggleXIPlayer(pid) {
+  const sub=gwState.gwSubmissions[session.managerIdx];
+  const available=buildAvailablePool(gwState,session.managerIdx);
+  const forcedIds=available.filter(p=>p.isSaboteur).map(p=>p.id);
+  // Cannot remove forced duds
+  if(forcedIds.includes(pid)){showToast('Saboteur players are forced into your XI','error');return;}
+  if(!sub.selectedXI) sub.selectedXI=[];
+  // Work only with non-forced selections
+  const chosen=sub.selectedXI.filter(id=>!forcedIds.includes(id));
+  const forcedDuds=available.filter(p=>p.isSaboteur);
+  const neededFromPool=11-forcedDuds.length;
+  const idx=chosen.indexOf(pid);
+  if(idx>-1) { chosen.splice(idx,1); }
+  else {
+    if(chosen.length>=neededFromPool){showToast('Already have enough — remove one first','error');return;}
+    chosen.push(pid);
+  }
+  // Store as forced duds + chosen
+  sub.selectedXI=[...forcedIds,...chosen];
+  renderXIPicks(document.getElementById('gw-content'));
+}
+
+async function confirmXI() {
+  const sub=gwState.gwSubmissions[session.managerIdx];
+  const available=buildAvailablePool(gwState,session.managerIdx);
+  const forcedIds=available.filter(p=>p.isSaboteur).map(p=>p.id);
+  const chosen=(sub.selectedXI||[]).filter(id=>!forcedIds.includes(id));
+  const neededFromPool=11-forcedIds.length;
+  // Ensure full XI = forced duds + chosen
+  sub.selectedXI=[...forcedIds,...chosen];
+  if(sub.selectedXI.length!==11){showToast('Pick exactly '+neededFromPool+' players to complete your XI','error');return;}
+  try {
+    const game=await getGame(session.gameId);
+    const state=game.state;
+    state.gwSubmissions[session.managerIdx].selectedXI=sub.selectedXI;
+    state.gwSubmissions[session.managerIdx].xiDone=true;
+    await saveGame(session.gameId,state);
+    gwState=state;
+    showToast('XI confirmed!','success');
+    renderXIPicks(document.getElementById('gw-content'));
+  } catch(e){showToast('Error: '+e.message,'error');}
+}
+
+async function commShowReveal() {
+  try {
+    const game=await getGame(session.gameId);
+    const state=game.state;
     state.gwPhase='reveal';
     await saveGame(session.gameId,state);
     gwState=state;
     renderGWReveal(document.getElementById('gw-content'));
+    showToast('Revealing scores!','success');
   } catch(e){showToast('Error: '+e.message,'error');}
 }
 
 // ── REVEAL ──
 function buildEffectiveTeams(state){
   return state.baseTeams.map((base,mIdx)=>{
-    // Who is attacking mIdx this week?
-    // attackerIdx targets mIdx — find who has mIdx as their rotation target
     const attackerIdx=state.rotation.indexOf(mIdx);
     const attackSub=state.gwSubmissions[attackerIdx]||{steals:[],saboteurs:[],saboteurTargets:[]};
-
-    // The attacker stole these 3 players OUT of mIdx's base team
     const stolenOutPids=(attackSub.steals||[]).filter(Boolean);
-    // The attacker planted these 3 duds IN to mIdx's team (replacing the stolen players)
     const dudPids=(attackSub.saboteurs||[]).filter(Boolean);
     const dudPlayers=dudPids.map((pid,i)=>({
       ...state.players.find(p=>p.id===pid),
@@ -1407,25 +1567,25 @@ function buildEffectiveTeams(state){
       replacedId:stolenOutPids[i]||null
     }));
 
-    // mIdx's effective team = base minus stolen players, plus duds
-    let effective=[...base].filter(p=>!stolenOutPids.includes(p.id));
-    effective.push(...dudPlayers);
-    effective=effective.slice(0,11);
-
-    // Who does mIdx attack this week?
+    // Build full available pool for mIdx
     const myTargetIdx=state.rotation[mIdx];
-    const mySub=state.gwSubmissions[mIdx]||{steals:[],saboteurs:[]};
-    // mIdx steals these 3 players from myTargetIdx's base team
+    const mySub=state.gwSubmissions[mIdx]||{steals:[],saboteurs:[],selectedXI:[]};
     const stolenInPids=(mySub.steals||[]).filter(Boolean);
     const stolenInPlayers=stolenInPids.map(pid=>({
-      ...state.players.find(p=>p.id===pid),
+      ...state.players.find(p=>p.id===pid)||state.baseTeams[myTargetIdx]?.find(p=>p.id===pid),
       isStolen:true
     }));
+    const availableBase=[...base].filter(p=>!stolenOutPids.includes(p.id));
+    const fullPool=[...availableBase,...dudPlayers,...stolenInPlayers];
 
-    // Add stolen players to mIdx's effective team (they replace the slots freed by duds)
-    // Remove any base players that clash with stolen positions if over 11
-    effective.push(...stolenInPlayers);
-    effective=effective.slice(0,11);
+    // Use manager's confirmed XI if available, otherwise fallback to first 11
+    const selectedXI=mySub.selectedXI||[];
+    let effective;
+    if(selectedXI.length===11) {
+      effective=selectedXI.map(pid=>fullPool.find(p=>p.id===pid)).filter(Boolean);
+    } else {
+      effective=fullPool.slice(0,11);
+    }
 
     const gwPts=effective.reduce((s,p)=>s+(p.gwPts||0),0);
     return {mIdx,effective,gwPts,attackerIdx,stolenOutPids,dudPids};
@@ -1657,7 +1817,7 @@ async function commNextGW(){
     state.currentGW++;
     state.rotationWeek=(state.rotationWeek+1)%(NUM_MGR-1);
     state.rotation=buildRotation(state.rotationWeek);
-    state.gwSubmissions=Array.from({length:NUM_MGR},()=>({steals:[null,null,null],saboteurs:[null,null,null],saboteurTargets:[null,null,null],done:false}));
+    state.gwSubmissions=Array.from({length:NUM_MGR},()=>({steals:[null,null,null],saboteurs:[null,null,null],saboteurTargets:[null,null,null],done:false,selectedXI:[],xiDone:false}));
     state.gwPhase='picks';
     state.transferOrder=[];
     state.transfersDone=[];
