@@ -1448,7 +1448,11 @@ function renderXIPicks(el) {
           Pick ${neededFromPool} more from your pool · ${xiDoneCount}/${NUM_MGR} confirmed
         </div>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="loadGameweek()">↻ Refresh</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        ${session.isCommissioner&&!gwState.gwLocked?`<button class="btn btn-red btn-sm" onclick="lockGW()">Lock GW${gwState.currentGW}</button>`:''}
+        ${gwState.gwLocked?'<span style="font-size:12px;color:var(--text-danger);font-weight:600">🔒 GW LOCKED</span>':''}
+        <button class="btn btn-ghost btn-sm" onclick="loadGameweek()">↻ Refresh</button>
+      </div>
     </div>`;
 
   if(sub.xiDone) {
@@ -1458,7 +1462,11 @@ function renderXIPicks(el) {
       <div style="display:flex;flex-wrap:wrap;gap:6px">
         ${displayXI.map(p=>'<div style="display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid '+(p.isStolen?'var(--blue)':p.isSaboteur?'var(--red)':'var(--border)')+';border-radius:4px;padding:6px 8px;font-size:11px"><span class="pos pos-'+p.pos+'">'+p.pos+'</span>'+p.name+(p.isStolen?' <span class="tag-steal" style="font-size:8px">STEAL</span>':'')+(p.isSaboteur?' <span class="tag-sab" style="font-size:8px">SAB</span>':'')+'</div>').join('')}
       </div>
-      ${allXIDone&&session.isCommissioner?'<button class="btn btn-sm" style="margin-top:16px" onclick="commShowReveal()">Reveal & Score →</button>':''}
+      <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
+        ${session.isCommissioner&&!gwState.gwLocked?'<button class="btn btn-red btn-sm" onclick="lockGW()">Lock GW'+gwState.currentGW+'</button>':''}
+        ${allXIDone&&session.isCommissioner?'<button class="btn btn-sm" onclick="commShowReveal()">Reveal & Score →</button>':''}
+        ${allXIDone&&!session.isCommissioner?'<div style="color:var(--gold);font-size:13px;">All confirmed — waiting for admin to reveal.</div>':''}
+      </div>
       ${allXIDone&&!session.isCommissioner?'<div style="color:var(--gold);font-size:13px;margin-top:12px">All confirmed — waiting for admin to reveal.</div>':''}
     </div>`;
   } else {
@@ -1500,6 +1508,7 @@ function renderXIPicks(el) {
 }
 
 function toggleXIPlayer(pid) {
+  if(gwState.gwLocked){showToast('GW is locked','error');return;}
   const sub=gwState.gwSubmissions[session.managerIdx];
   const available=buildAvailablePool(gwState,session.managerIdx);
   const forcedIds=available.filter(p=>p.isSaboteur).map(p=>p.id);
@@ -1522,6 +1531,7 @@ function toggleXIPlayer(pid) {
 }
 
 async function confirmXI() {
+  if(gwState.gwLocked){showToast('GW is locked — no more changes','error');return;}
   const sub=gwState.gwSubmissions[session.managerIdx];
   const available=buildAvailablePool(gwState,session.managerIdx);
   const forcedIds=available.filter(p=>p.isSaboteur).map(p=>p.id);
@@ -1539,6 +1549,33 @@ async function confirmXI() {
     gwState=state;
     showToast('XI confirmed!','success');
     renderXIPicks(document.getElementById('gw-content'));
+  } catch(e){showToast('Error: '+e.message,'error');}
+}
+
+async function lockGW() {
+  if(!confirm('Lock GW'+gwState.currentGW+'? No more XI changes will be possible.')) return;
+  try {
+    const game=await getGame(session.gameId);
+    const state=game.state;
+    state.gwLocked=true;
+    // Auto-confirm any unsubmitted XIs with array fallback
+    state.gwSubmissions=state.gwSubmissions.map((sub,mIdx)=>{
+      if(!sub.xiDone) {
+        const available=buildAvailablePool(state,mIdx);
+        const forcedIds=available.filter(p=>p.isSaboteur).map(p=>p.id);
+        const choosable=available.filter(p=>!p.isSaboteur);
+        const needed=11-forcedIds.length;
+        // Auto-pick by season points
+        const autoPicked=choosable.sort((a,b)=>b.pts-a.pts).slice(0,needed).map(p=>p.id);
+        sub.selectedXI=[...forcedIds,...autoPicked];
+        sub.xiDone=true;
+      }
+      return sub;
+    });
+    await saveGame(session.gameId,state);
+    gwState=state;
+    showToast('GW'+state.currentGW+' locked — no more changes','success');
+    loadGameweek();
   } catch(e){showToast('Error: '+e.message,'error');}
 }
 
@@ -1821,6 +1858,7 @@ async function commNextGW(){
     state.gwPhase='picks';
     state.transferOrder=[];
     state.transfersDone=[];
+    state.gwLocked=false;
     await saveGame(session.gameId,state);
     gwState=state;
     updateGWBadge(state);
