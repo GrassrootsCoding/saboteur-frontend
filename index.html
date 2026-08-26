@@ -1771,6 +1771,8 @@ function renderGWTransfer(el){
   gwState.transferOrder.forEach((i,rank)=>{
     const done=gwState.transfersDone.includes(i);
     const isMe=i===mIdx;
+    const ahead=gwState.transferOrder.slice(0,rank);
+    const waitingForMe=isMe&&ahead.some(idx=>!gwState.transfersDone.includes(idx));
     html+=`<div class="transfer-row" style="${isMe?'border-color:var(--gold-dim)':''}">
       <div class="tr-rank">${rank+1}</div>
       <div class="tr-info">
