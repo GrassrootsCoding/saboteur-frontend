@@ -216,7 +216,7 @@ input:focus { border-color: var(--gold); }
   <div class="header-right">
     <div class="nav-tabs" id="nav-tabs" style="display:none">
       <div class="nav-tab active" data-screen="dashboard" onclick="showScreen('dashboard')">My Team</div>
-      <div class="nav-tab" data-screen="draft" onclick="showScreen('draft')">Draft</div>
+      <div class="nav-tab" data-screen="draft" id="draft-tab" onclick="showScreen('draft')">Draft</div>
       <div class="nav-tab" data-screen="gameweek" onclick="showScreen('gameweek')">Gameweek</div>
       <div class="nav-tab" data-screen="league" onclick="showScreen('league')">League</div>
     </div>
@@ -378,6 +378,7 @@ input:focus { border-color: var(--gold); }
       </div>
     </div>
     <div class="modal-ft">
+      <button class="btn btn-outline" onclick="closeModal('modal-transfer')">Close</button>
       <button class="btn btn-outline" onclick="skipTransfer()">Skip Transfer</button>
       <button class="btn" id="mtr-confirm" onclick="confirmTransfer()" disabled>Confirm Transfer</button>
     </div>
@@ -654,6 +655,9 @@ function enterApp(state) {
   document.getElementById('user-badge').textContent = `${session.name} · ${session.teamName}`;
   document.getElementById('logout-btn').style.display='block';
   document.getElementById('gw-badge').style.display='block';
+  // Hide draft tab once draft is complete
+  const draftTab = document.getElementById('draft-tab');
+  if(draftTab) draftTab.style.display = state.phase==='draft' ? 'block' : 'none';
   updateGWBadge(state);
   showScreen('dashboard');
 }
@@ -1122,6 +1126,10 @@ async function loadGameweek() {
     gwState=game.state;
     updateGWBadge(gwState);
     if(gwState.phase==='draft'){el.innerHTML='<div class="loading-box">Draft not yet complete.</div>';return;}
+    // Fetch active player pool for swaps/sabotage/transfers (minutes > 0)
+    const activePlayers = await fetchActivePlayers();
+    if(activePlayers) gwState.activePool = activePlayers;
+    else gwState.activePool = gwState.players; // fallback to draft pool
 
     // Fix rotation if missing or empty — can happen if draft just completed
     if(!gwState.rotation||!gwState.rotation.length) {
@@ -1309,7 +1317,9 @@ function renderGWPool(){
     const taken=sub.saboteurs.filter(Boolean);
     const stolenPid=(sub.saboteurTargets||[])[gwPickMode.slot];
     const stolenPlayer=stolenPid?gwState.baseTeams[targetIdx]?.find(p=>p.id===stolenPid)||gwState.players.find(p=>p.id===stolenPid):null;
-    players=gwState.players.filter(p=>{
+    // Use active pool (players with minutes > 0) for sabotage - no more 0-minute duds
+    const sabPool = gwState.activePool || gwState.players;
+    players=sabPool.filter(p=>{
       if(drafted.has(p.id)) return false;
       if(taken.includes(p.id)||allSabs.has(p.id)) return false;
       if(stolenPlayer && p.pos!==stolenPlayer.pos) return false;
@@ -1678,6 +1688,18 @@ function renderGWReveal(el){
   el.innerHTML=html;
 }
 
+async function fetchActivePlayers() {
+  try {
+    const res = await fetch(`${API_BASE}/api/players/active`);
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json.players || null;
+  } catch(e) {
+    console.warn('Could not fetch active players:', e);
+    return null;
+  }
+}
+
 async function refreshGWPoints(){
   try {
     const res=await fetch(`${API_BASE}/api/gameweek/${gwState.currentGW}`);
@@ -1756,7 +1778,13 @@ function renderGWTransfer(el){
         <div style="font-size:11px;color:var(--text-dim)">${isMe?session.name:mgrName(i)}</div>
         <div style="font-size:11px;color:var(--text-dim)">GW: ${gwState.gwHistory[gwState.currentGW-1]?.[i]?.pts??'—'}pts · Season: ${gwState.seasonPts[i]}pts</div>
       </div>
-      <div>${done?'<span style="color:var(--green);font-size:12px;font-weight:600">✓ Done</span>':'<span style="color:var(--text-dim);font-size:12px">Pending</span>'}</div>
+      <div>${done
+          ?'<span style="color:var(--green);font-size:12px;font-weight:600">✓ Done</span>'
+          :isMe&&!waitingForMe
+            ?'<span style="color:var(--gold);font-size:12px;font-weight:600">← Your turn</span>'
+            :isMe&&waitingForMe
+              ?'<span style="color:var(--text-dim);font-size:12px">Waiting for others…</span>'
+              :'<span style="color:var(--text-dim);font-size:12px">Pending</span>'}</div>
     </div>`;
   });
   html+='</div>';
@@ -1764,6 +1792,15 @@ function renderGWTransfer(el){
 }
 
 function openTransferModal(){
+  // Check if it's your turn - everyone ranked before you must have done their transfer
+  const myRank=gwState.transferOrder.indexOf(session.managerIdx);
+  const ahead=gwState.transferOrder.slice(0,myRank);
+  const waitingOn=ahead.filter(i=>!gwState.transfersDone.includes(i));
+  if(waitingOn.length>0){
+    const names=waitingOn.map(i=>mgrName(i)).join(', ');
+    showToast(`Not your turn yet — waiting for: ${names}`,'error');
+    return;
+  }
   trOutPlayer=null; trInPlayer=null;
   document.getElementById('mtr-title').textContent=`Transfer · ${session.teamName}`;
   document.getElementById('mtr-sub').textContent='Select out then in (same position, undrafted pool only)';
@@ -1795,7 +1832,9 @@ function renderTransferInPool(){
   if(!trOutPlayer){el.innerHTML='<div style="padding:12px;color:var(--text-dim);font-size:12px">Select a player to transfer out first.</div>';return;}
   const search=(document.getElementById('mtr-search')?.value||'').toLowerCase();
   const drafted=new Set(gwState.drafted);
-  const players=gwState.players.filter(p=>{
+  // Use active pool for transfers - anyone who has played this season
+  const trPool = gwState.activePool || gwState.players;
+  const players=trPool.filter(p=>{
     if(drafted.has(p.id)) return false;
     if(p.pos!==trOutPlayer.pos) return false;
     if(search&&!p.name.toLowerCase().includes(search)&&!p.team.toLowerCase().includes(search)) return false;
