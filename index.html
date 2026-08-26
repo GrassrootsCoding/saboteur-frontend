@@ -330,6 +330,20 @@ input:focus { border-color: var(--gold); }
   </div>
 </div>
 
+<!-- MODAL: Team view -->
+<div class="modal-bg" id="modal-team-view">
+  <div class="modal">
+    <div class="modal-hd">
+      <h3 id="mtv-title">Team</h3>
+      <p id="mtv-sub"></p>
+    </div>
+    <div class="modal-body" id="mtv-body"></div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" onclick="closeModal('modal-team-view')">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: Draft pick confirm -->
 <div class="modal-bg" id="modal-pick">
   <div class="modal">
@@ -701,16 +715,115 @@ async function loadDashboard() {
         <button class="btn btn-sm" onclick="showScreen('draft')">Go to Draft</button>
       </div>`;
     } else {
-      html += `<div class="card">
-        <div class="card-title">Base Team · ${myTeam.length}/11 players</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px">
-          ${myTeam.map(p=>`
-            <div style="display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:8px">
-              <span class="pos pos-${p.pos}">${p.pos}</span>
-              <div><div style="font-size:12px;font-weight:500">${p.name}</div><div style="font-size:10px;color:var(--text-dim)">${p.team} · £${p.price}m</div></div>
-              <div style="margin-left:auto;font-family:monospace;font-size:11px;color:var(--gold)">${p.pts}pts</div>
-            </div>`).join('')}
+      // Sort team GK > DEF > MID > FWD
+      const posOrd={GK:0,DEF:1,MID:2,FWD:3};
+      const sortedTeam=[...myTeam].sort((a,b)=>posOrd[a.pos]-posOrd[b.pos]);
+
+      // Get GW history for this manager
+      const lastGW=state.gwHistory.length>0?state.gwHistory[state.gwHistory.length-1]:null;
+      const prevGW=state.gwHistory.length>1?state.gwHistory[state.gwHistory.length-2]:null;
+      const lastGWPts=lastGW?.[session.managerIdx]?.pts??null;
+      const prevGWPts=prevGW?.[session.managerIdx]?.pts??null;
+
+      // Get effective team for last GW to identify stolen/dud players
+      // We'll use gwSubmissions to find stolen and dud totals from last GW history
+      // For now show gwPts per player (live from FPL field)
+      const teamRows=sortedTeam.map(p=>{
+        const gwP=p.gwPts||0;
+        const ptsColour=gwP>=8?'var(--green)':gwP<=2&&gwP>0?'var(--red)':'var(--text-mid)';
+        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--surface2);">
+          <span class="pos pos-${p.pos}">${p.pos}</span>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:500;color:var(--text)">${p.name}</div>
+            <div style="font-size:10px;color:var(--text-dim)">${p.team} · £${p.price}m</div>
+          </div>
+          <div style="text-align:right;min-width:60px">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:14px;color:${ptsColour};font-weight:600">${gwP}pts</div>
+            <div style="font-size:10px;color:var(--text-dim)">this GW</div>
+          </div>
+          ${prevGWPts!==null?`<div style="text-align:right;min-width:50px">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim)">${p.gwPts||0}</div>
+            <div style="font-size:9px;color:var(--text-dim)">prev GW</div>
+          </div>`:''}
+        </div>`;
+      }).join('');
+
+      // Season running totals for steals I made and duds planted in me
+      // Walk through gwHistory to accumulate
+      let seasonStealPts=0, seasonDudPts=0;
+      let seasonStealCount=0, seasonDudCount=0;
+      (state.gwHistory||[]).forEach((gw,gwIdx)=>{
+        if(!gw) return;
+        // What rotation was in place for this GW?
+        // rotationWeek advances each GW so week 0 = rotationWeek 0 etc
+        const rotWeek=gwIdx%(NUM_MGR-1);
+        const rot=buildRotation(rotWeek);
+        // Steals I made: my submission for that GW
+        const mySub=state.gwSubmissions?.[session.managerIdx];
+        // gwHistory only has pts not per-player breakdown
+        // We store submissions per-GW in gwHistory if available
+        // For now use gwSubmissions (current GW only) as a proxy
+        // and fall back to counting from gwHistory totals
+      });
+
+      // Better approach: use current GW submissions for the current week
+      // and gwHistory for season context
+      // Current GW steals I made
+      const mySub=state.gwSubmissions?.[session.managerIdx]||{};
+      const myStealPids=(mySub.steals||[]).filter(Boolean);
+      const myStealPts=myStealPids.reduce((s,pid)=>{
+        const p=state.players.find(x=>x.id===pid);
+        return s+(p?.gwPts||0);
+      },0);
+
+      // Current GW duds planted in me
+      const attackerIdx=state.rotation.indexOf(session.managerIdx);
+      const attackSub=state.gwSubmissions?.[attackerIdx]||{};
+      const myDudPids=(attackSub.saboteurs||[]).filter(Boolean);
+      const myDudPts=myDudPids.reduce((s,pid)=>{
+        const p=state.players.find(x=>x.id===pid)||(state.activePool||[]).find(x=>x.id===pid);
+        return s+(p?.gwPts||0);
+      },0);
+
+      // Season totals — stored in state if we track them, otherwise GW count
+      const completedGWs=(state.gwHistory||[]).length;
+      const stolenPts=myStealPts;
+      const dudPts=myDudPts;
+      const stolenOutPids=myStealPids;
+      const dudPids=myDudPids;
+
+      html += `<div class="card" style="padding:0;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border)">
+          <div class="card-title" style="margin-bottom:0">Base Team · ${myTeam.length}/11</div>
+          <div style="display:flex;gap:16px">
+            ${lastGWPts!==null?`<div style="text-align:right"><div style="font-family:'JetBrains Mono',monospace;font-size:18px;color:var(--gold);font-weight:600">${lastGWPts}</div><div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase">Last GW</div></div>`:''}
+            <div style="text-align:right"><div style="font-family:'JetBrains Mono',monospace;font-size:18px;color:var(--gold);font-weight:600">${myPts}</div><div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase">Season</div></div>
+          </div>
         </div>
+        ${teamRows}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+        <div class="card" style="text-align:center;padding:16px">
+          <div style="font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--blue);margin-bottom:6px">🗡 Points from your steals</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:28px;color:var(--blue)">${stolenPts}</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:4px">${stolenOutPids.length} stolen · GW${state.currentGW}</div>
+        </div>
+        <div class="card" style="text-align:center;padding:16px">
+          <div style="font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--red);margin-bottom:6px">💣 Points from duds in your team</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:28px;color:var(--red)">${dudPts}</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:4px">${dudPids.length} duds · GW${state.currentGW}</div>
+        </div>
+      </div>`;
+    }
+
+    // Admin player search
+    if (session.isCommissioner) {
+      html += `<div class="card" style="margin-top:16px">
+        <div class="card-title">🔍 Player Search (Admin)</div>
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <input type="text" id="player-search-input" placeholder="Search by name…" style="flex:1" oninput="searchPlayers()">
+        </div>
+        <div id="player-search-results" style="font-size:12px;color:var(--text-dim)">Type a name to find who owns them</div>
       </div>`;
     }
 
@@ -727,9 +840,20 @@ async function loadDashboard() {
 
     if (session.isCommissioner && state.gwPhase === 'xi' && state.phase === 'gameweek') {
       const allXIDone = state.gwSubmissions.every(s=>s.xiDone);
+      const managers = await sbGet('managers', {game_id: session.gameId});
+      const mgMap2 = {};
+      managers.forEach(m => mgMap2[m.manager_index] = m);
       html += `<div class="card" style="margin-top:16px;border-color:var(--gold-dim)">
         <div class="card-title">⚙ Admin Controls</div>
         <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px">${state.gwSubmissions.filter(s=>s.xiDone).length}/${NUM_MGR} XIs confirmed</div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
+          ${state.gwSubmissions.map((sub,i)=>`
+            <div style="display:flex;align-items:center;gap:10px;font-size:12px">
+              <span style="flex:1;color:var(--text)">${mgMap2[i]?.name||'Manager '+(i+1)}</span>
+              <span style="color:${sub.xiDone?'var(--green)':'var(--text-dim)'}">${sub.xiDone?'✓ Confirmed':'Pending'}</span>
+              ${sub.xiDone?`<button class="btn btn-ghost" style="font-size:10px;padding:3px 8px;letter-spacing:0" onclick="adminResetXI(${i})">Reset</button>`:''}
+            </div>`).join('')}
+        </div>
         <button class="btn btn-sm" onclick="commShowReveal()">Reveal & Score →</button>
       </div>`;
     }
@@ -1394,6 +1518,64 @@ async function submitMyPicks(){
 }
 
 // ── COMMISSIONER: REVEAL ──
+function searchPlayers() {
+  const query=(document.getElementById('player-search-input')?.value||'').toLowerCase().trim();
+  const el=document.getElementById('player-search-results');
+  if(!el) return;
+  if(query.length<2){el.innerHTML='<span style="color:var(--text-dim)">Type at least 2 characters</span>';return;}
+
+  // Search across all base teams
+  const results=[];
+  // Load manager names from cached mgNames
+  loadManagerNames().then(()=>{
+    getGame(session.gameId).then(game=>{
+      const state=game.state;
+      state.baseTeams.forEach((team,mIdx)=>{
+        team.forEach(p=>{
+          if(p.name.toLowerCase().includes(query)||p.full?.toLowerCase().includes(query)){
+            results.push({p, mIdx});
+          }
+        });
+      });
+      // Also check active pool to see if unowned
+      const allOwned=new Set(state.baseTeams.flatMap(t=>t.map(p=>p.id)));
+      const pool=state.activePool||state.players;
+      pool.forEach(p=>{
+        if(!allOwned.has(p.id)&&(p.name.toLowerCase().includes(query)||p.full?.toLowerCase().includes(query))){
+          results.push({p, mIdx:-1}); // -1 = unowned
+        }
+      });
+
+      if(!results.length){el.innerHTML='<span style="color:var(--text-dim)">No players found</span>';return;}
+      el.innerHTML=results.map(({p,mIdx})=>`
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--surface2)">
+          <span class="pos pos-${p.pos}">${p.pos}</span>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:500;color:var(--text)">${p.name}</div>
+            <div style="font-size:10px;color:var(--text-dim)">${p.team} · £${p.price}m · ${p.pts}pts</div>
+          </div>
+          <div style="font-size:12px;font-weight:600;color:${mIdx===-1?'var(--text-dim)':mIdx===session.managerIdx?'var(--gold)':'var(--text)'}">
+            ${mIdx===-1?'Unowned':mIdx===session.managerIdx?'You ('+session.teamName+')':mgrTeam(mIdx)+' ('+mgrName(mIdx)+')'}
+          </div>
+        </div>`).join('');
+    });
+  });
+}
+
+async function adminResetXI(mIdx) {
+  const mgName = mgrName(mIdx) || `Manager ${mIdx+1}`;
+  if(!confirm(`Reset ${mgName}'s XI? They will need to reconfirm.`)) return;
+  try {
+    const game=await getGame(session.gameId);
+    const state=game.state;
+    state.gwSubmissions[mIdx].xiDone=false;
+    state.gwSubmissions[mIdx].selectedXI=[];
+    await saveGame(session.gameId, state);
+    showToast(`${mgName}'s XI has been reset`, 'success');
+    loadDashboard();
+  } catch(e){showToast('Error: '+e.message,'error');}
+}
+
 async function commReveal(){
   try {
     const game=await getGame(session.gameId);
@@ -1726,7 +1908,17 @@ async function commFinaliseGW(){
     if(!state.gwHistory[state.currentGW-1]) state.gwHistory[state.currentGW-1]=Array(NUM_MGR).fill(null);
     teams.forEach(r=>{
       state.seasonPts[r.mIdx]+=r.gwPts;
-      state.gwHistory[state.currentGW-1][r.mIdx]={pts:r.gwPts,win:r.gwPts===maxPts};
+      state.gwHistory[state.currentGW-1][r.mIdx]={
+        pts: r.gwPts,
+        win: r.gwPts===maxPts,
+        // Store submission snapshot for season running totals
+        steals: (state.gwSubmissions[r.mIdx]?.steals||[]).filter(Boolean),
+        saboteurs: (state.gwSubmissions[r.mIdx]?.saboteurs||[]).filter(Boolean),
+        saboteurTargets: (state.gwSubmissions[r.mIdx]?.saboteurTargets||[]).filter(Boolean),
+        selectedXI: state.gwSubmissions[r.mIdx]?.selectedXI||[],
+        targetIdx: state.rotation[r.mIdx],
+        attackerIdx: state.rotation.indexOf(r.mIdx),
+      };
     });
     state.transferOrder=[...teams].sort((a,b)=>a.gwPts-b.gwPts).map(r=>r.mIdx);
     state.transfersDone=[];
@@ -1833,12 +2025,14 @@ function renderTransferInPool(){
   const el=document.getElementById('mtr-in-pool');
   if(!trOutPlayer){el.innerHTML='<div style="padding:12px;color:var(--text-dim);font-size:12px">Select a player to transfer out first.</div>';return;}
   const search=(document.getElementById('mtr-search')?.value||'').toLowerCase();
-  const drafted=new Set(gwState.drafted);
+  // Rebuild drafted set from all base teams to ensure accuracy
+  const drafted=new Set(gwState.baseTeams.flatMap(team=>team.map(p=>p.id)));
   // Use active pool for transfers - anyone who has played this season
+  // Exclude all players currently in any base team
   const trPool = gwState.activePool || gwState.players;
   const players=trPool.filter(p=>{
-    if(drafted.has(p.id)) return false;
-    if(p.pos!==trOutPlayer.pos) return false;
+    if(drafted.has(p.id)) return false; // already owned by someone
+    if(p.pos!==trOutPlayer.pos) return false; // same position only
     if(search&&!p.name.toLowerCase().includes(search)&&!p.team.toLowerCase().includes(search)) return false;
     return true;
   }).sort((a,b)=>b.pts-a.pts);
@@ -1909,6 +2103,50 @@ async function commNextGW(){
 }
 
 // ══════════════════════════════════════════════════════
+// TEAM VIEW
+// ══════════════════════════════════════════════════════
+let _leagueState=null, _leagueMgMap=null;
+
+function viewTeamByIdx(mIdx) {
+  if(_leagueState&&_leagueMgMap) viewTeam(mIdx,_leagueState,_leagueMgMap);
+}
+
+function viewTeam(mIdx, state, mgMap) {
+  const team=state.baseTeams[mIdx]||[];
+  const name=mgMap[mIdx]?.name||`Manager ${mIdx+1}`;
+  const teamName=mgMap[mIdx]?.team_name||`Team ${mIdx+1}`;
+  const posOrd={GK:0,DEF:1,MID:2,FWD:3};
+  const sorted=[...team].sort((a,b)=>posOrd[a.pos]-posOrd[b.pos]);
+
+  document.getElementById('mtv-title').textContent=teamName;
+  document.getElementById('mtv-sub').textContent=`Manager: ${name} · ${team.length} players`;
+
+  const lastGW=state.gwHistory.length>0?state.gwHistory[state.gwHistory.length-1]:null;
+
+  document.getElementById('mtv-body').innerHTML=`
+    <div style="display:flex;flex-direction:column;gap:0;border:1px solid var(--border);border-radius:6px;overflow:hidden">
+      ${sorted.map(p=>{
+        const gwP=p.gwPts||0;
+        const ptsColour=gwP>=8?'var(--green)':gwP<=2&&gwP>0?'var(--red)':'var(--text-mid)';
+        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--surface2);background:var(--surface2)">
+          <span class="pos pos-${p.pos}">${p.pos}</span>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:500;color:var(--text)">${p.name}</div>
+            <div style="font-size:10px;color:var(--text-dim)">${p.team} · £${p.price}m</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:${ptsColour};font-weight:600">${gwP}pts</div>
+            <div style="font-size:9px;color:var(--text-dim)">this GW</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    ${lastGW?`<div style="margin-top:10px;font-size:12px;color:var(--text-dim);text-align:right">Last GW total: <strong style="color:var(--gold)">${lastGW[mIdx]?.pts??'—'}</strong> pts · Season: <strong style="color:var(--gold)">${state.seasonPts[mIdx]||0}</strong> pts</div>`:''}`;
+
+  openModal('modal-team-view');
+}
+
+// ══════════════════════════════════════════════════════
 // LEAGUE TABLE
 // ══════════════════════════════════════════════════════
 async function loadLeague(){
@@ -1923,6 +2161,7 @@ async function loadLeague(){
     document.getElementById('gw-col-headers').outerHTML=Array.from({length:numGWs},(_,g)=>`<th>GW${g+1}</th>`).join('')||'<th></th>';
 
     const lastGW=state.gwHistory.length>0?state.gwHistory[state.gwHistory.length-1]:null;
+    _leagueState=state; _leagueMgMap=mgMap;
     const sorted=Array.from({length:NUM_MGR},(_,i)=>({
       mIdx:i,
       name:mgMap[i]?.name||`Manager ${i+1}`,
@@ -1941,7 +2180,7 @@ async function loadLeague(){
       const isMe=row.mIdx===session.managerIdx;
       const latestPts=row.latestGW?.pts??'—';
       const latestWin=row.latestGW?.win||false;
-      return `<tr style="${isMe?'background:rgba(240,192,64,0.05)':''}">
+      return `<tr style="${isMe?'background:rgba(240,192,64,0.05)':''}";cursor:pointer" onclick="viewTeamByIdx(${row.mIdx})">
         <td style="color:var(--text-dim);font-family:monospace;font-size:11px">${rank+1}</td>
         <td><strong>${row.team}</strong>${isMe?' <span style="color:var(--gold);font-size:10px">(you)</span>':''}</td>
         <td style="color:var(--text-dim)">${row.name}</td>
