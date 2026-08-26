@@ -2015,7 +2015,8 @@ function renderTransferOutPool(){
 }
 
 function selectTrOut(pid){
-  trOutPlayer=gwState.baseTeams[session.managerIdx].find(p=>p.id===pid);
+  const numPid=Number(pid);
+  trOutPlayer=gwState.baseTeams[session.managerIdx].find(p=>p.id===numPid);
   trInPlayer=null;
   document.getElementById('mtr-confirm').disabled=true;
   renderTransferOutPool(); renderTransferInPool();
@@ -2046,7 +2047,9 @@ function renderTransferInPool(){
 }
 
 function selectTrIn(pid){
-  trInPlayer=gwState.players.find(p=>p.id===pid);
+  const numPid=Number(pid);
+  const pool=gwState.activePool||gwState.players;
+  trInPlayer=pool.find(p=>p.id===numPid)||gwState.players.find(p=>p.id===numPid);
   document.getElementById('mtr-confirm').disabled=!trOutPlayer||!trInPlayer;
   renderTransferInPool();
 }
