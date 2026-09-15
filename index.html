@@ -715,82 +715,156 @@ async function loadDashboard() {
         <button class="btn btn-sm" onclick="showScreen('draft')">Go to Draft</button>
       </div>`;
     } else {
-      // Sort team GK > DEF > MID > FWD
-      const posOrd={GK:0,DEF:1,MID:2,FWD:3};
-      const sortedTeam=[...myTeam].sort((a,b)=>posOrd[a.pos]-posOrd[b.pos]);
-
       // Get GW history for this manager
       const lastGW=state.gwHistory.length>0?state.gwHistory[state.gwHistory.length-1]:null;
-      const prevGW=state.gwHistory.length>1?state.gwHistory[state.gwHistory.length-2]:null;
       const lastGWPts=lastGW?.[session.managerIdx]?.pts??null;
-      const prevGWPts=prevGW?.[session.managerIdx]?.pts??null;
 
-      // Get effective team for last GW to identify stolen/dud players
-      // We'll use gwSubmissions to find stolen and dud totals from last GW history
-      // For now show gwPts per player (live from FPL field)
-      const teamRows=sortedTeam.map(p=>{
+      // Build effective team info for current GW (steals/duds)
+      const attackerIdx2=state.rotation.indexOf(session.managerIdx);
+      const attackSub2=state.gwSubmissions?.[attackerIdx2]||{};
+      const dudPidsNow=(attackSub2.saboteurs||[]).filter(Boolean).map(Number);
+      const mySub2=state.gwSubmissions?.[session.managerIdx]||{};
+      const stealPidsNow=(mySub2.steals||[]).filter(Boolean).map(Number);
+
+      // Build pitch formation rows: GK(1), DEF(4), MID(3), FWD(3)
+      const posOrd={GK:0,DEF:1,MID:2,FWD:3};
+      const sorted=[...myTeam].sort((a,b)=>posOrd[a.pos]-posOrd[b.pos]);
+      const byPos={GK:[],DEF:[],MID:[],FWD:[]};
+      sorted.forEach(p=>byPos[p.pos].push(p));
+
+      // Also add duds and steals to the pitch if XI phase or reveal
+      const fullPool2=gwState?.activePool||state.players;
+      const dudPlayers2=dudPidsNow.map(pid=>{
+        const p=fullPool2.find(x=>x.id===pid)||state.players.find(x=>x.id===pid);
+        return p?{...p,isSaboteur:true}:null;
+      }).filter(Boolean);
+      const stealPlayers2=stealPidsNow.map(pid=>{
+        const targetIdx2=state.rotation[session.managerIdx];
+        const p=state.baseTeams[targetIdx2]?.find(x=>x.id===pid)||fullPool2.find(x=>x.id===pid);
+        return p?{...p,isStolen:true}:null;
+      }).filter(Boolean);
+
+      function shirtColour(p) {
+        if(p.isSaboteur) return '#e84a4a';
+        if(p.isStolen) return '#4a8fe8';
+        if(p.pos==='GK') return '#9b6de8';
+        if(p.pos==='DEF') return '#3ab870';
+        if(p.pos==='MID') return '#f0c040';
+        return '#e84a4a';
+      }
+      function shirtTextColour(p) {
+        if(p.pos==='DEF'&&!p.isSaboteur&&!p.isStolen) return '#000';
+        if(p.pos==='MID'&&!p.isSaboteur&&!p.isStolen) return '#000';
+        return '#fff';
+      }
+      function renderShirt(p) {
         const gwP=p.gwPts||0;
-        const ptsColour=gwP>=8?'var(--green)':gwP<=2&&gwP>0?'var(--red)':'var(--text-mid)';
-        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--surface2);">
-          <span class="pos pos-${p.pos}">${p.pos}</span>
-          <div style="flex:1">
-            <div style="font-size:13px;font-weight:500;color:var(--text)">${p.name}</div>
-            <div style="font-size:10px;color:var(--text-dim)">${p.team} · £${p.price}m</div>
+        const ptsColour=p.isSaboteur?'rgba(255,100,100,0.9)':p.isStolen?'rgba(100,180,255,0.9)':'rgba(255,255,255,0.7)';
+        const nameColour=p.isSaboteur?'#ff9999':p.isStolen?'#99ccff':'#fff';
+        const ring=p.isSaboteur||p.isStolen?'border:2px solid rgba(255,255,255,0.8);box-shadow:0 0 0 2px '+shirtColour(p)+';':'border:2px solid rgba(255,255,255,0.35);';
+        const tag=p.isSaboteur?'SAB':p.isStolen?'STL':'';
+        // Responsive sizing via vw — scales with screen width, capped for large screens
+        return `<div style="text-align:center;width:clamp(44px,12vw,72px)">
+          <div style="width:clamp(28px,8vw,38px);height:clamp(28px,8vw,38px);background:${shirtColour(p)};border-radius:50%;margin:0 auto 3px;display:flex;align-items:center;justify-content:center;${ring}">
+            <span style="font-size:clamp(7px,1.8vw,9px);font-weight:500;color:${shirtTextColour(p)}">${p.pos}</span>
           </div>
-          <div style="text-align:right;min-width:60px">
-            <div style="font-family:'JetBrains Mono',monospace;font-size:14px;color:${ptsColour};font-weight:600">${gwP}pts</div>
-            <div style="font-size:10px;color:var(--text-dim)">this GW</div>
-          </div>
-          ${prevGWPts!==null?`<div style="text-align:right;min-width:50px">
-            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim)">${p.gwPts||0}</div>
-            <div style="font-size:9px;color:var(--text-dim)">prev GW</div>
-          </div>`:''}
+          <div style="font-size:clamp(9px,2.2vw,11px);font-weight:500;color:${nameColour};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:clamp(44px,12vw,72px)">${p.name}</div>
+          <div style="font-size:clamp(8px,1.8vw,10px);color:${ptsColour}">${tag?tag+' · ':''}${gwP}pts</div>
         </div>`;
-      }).join('');
+      }
 
-      // Season running totals for steals I made and duds planted in me
-      // Walk through gwHistory to accumulate
+      // Use XI if available, otherwise base team by formation
+      const xiPids=(mySub2.selectedXI||[]);
+      let pitchGK=byPos.GK, pitchDEF=byPos.DEF, pitchMID=byPos.MID, pitchFWD=byPos.FWD;
+      if(xiPids.length===11) {
+        // Rebuild from XI
+        const xiPlayers=xiPids.map(pid=>{
+          const numPid=Number(pid);
+          const base=myTeam.find(p=>p.id===numPid);
+          if(base) return base;
+          const dud=dudPlayers2.find(p=>p.id===numPid);
+          if(dud) return dud;
+          const steal=stealPlayers2.find(p=>p.id===numPid);
+          if(steal) return steal;
+          return null;
+        }).filter(Boolean);
+        pitchGK=xiPlayers.filter(p=>p.pos==='GK');
+        pitchDEF=xiPlayers.filter(p=>p.pos==='DEF');
+        pitchMID=xiPlayers.filter(p=>p.pos==='MID');
+        pitchFWD=xiPlayers.filter(p=>p.pos==='FWD');
+      }
+
+      const pitchHTML=`
+        <div style="background:linear-gradient(180deg,#2d6a2d 0%,#1e4d1e 50%,#2d6a2d 100%);border-radius:10px;padding:clamp(0.8rem,3vw,1.2rem) clamp(2px,1vw,0.5rem);position:relative;overflow:hidden;margin-bottom:12px">
+          <div style="position:absolute;inset:0;pointer-events:none">
+            <div style="position:absolute;top:50%;left:8%;right:8%;height:1px;background:rgba(255,255,255,0.12)"></div>
+            <div style="position:absolute;top:25%;left:20%;right:20%;height:50%;border:1px solid rgba(255,255,255,0.08);border-radius:2px"></div>
+          </div>
+          <div style="display:flex;justify-content:center;margin-bottom:clamp(0.8rem,3vw,1.2rem)">${pitchGK.map(p=>renderShirt(p)).join('')}</div>
+          <div style="display:flex;justify-content:space-around;margin-bottom:clamp(0.8rem,3vw,1.2rem)">${pitchDEF.map(p=>renderShirt(p)).join('')}</div>
+          <div style="display:flex;justify-content:space-around;margin-bottom:clamp(0.8rem,3vw,1.2rem);padding:0 clamp(4px,2vw,1.5rem)">${pitchMID.map(p=>renderShirt(p)).join('')}</div>
+          <div style="display:flex;justify-content:space-around;padding:0 clamp(4px,2vw,2rem)">${pitchFWD.map(p=>renderShirt(p)).join('')}</div>
+        </div>
+        <div style="display:flex;gap:14px;justify-content:center;font-size:11px;color:var(--text-dim);margin-bottom:12px">
+          <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#9b6de8;margin-right:3px;vertical-align:middle"></span>GK</span>
+          <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#3ab870;margin-right:3px;vertical-align:middle"></span>Base</span>
+          <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#4a8fe8;margin-right:3px;vertical-align:middle"></span>Steal</span>
+          <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#e84a4a;margin-right:3px;vertical-align:middle"></span>Saboteur</span>
+        </div>`;
+
+      // Season running totals from gwHistory (snapshots stored from GW2 onwards)
+      // Plus current GW in progress
       let seasonStealPts=0, seasonDudPts=0;
-      let seasonStealCount=0, seasonDudCount=0;
+      let seasonStealGWs=0, seasonDudGWs=0;
+
       (state.gwHistory||[]).forEach((gw,gwIdx)=>{
         if(!gw) return;
-        // What rotation was in place for this GW?
-        // rotationWeek advances each GW so week 0 = rotationWeek 0 etc
-        const rotWeek=gwIdx%(NUM_MGR-1);
-        const rot=buildRotation(rotWeek);
-        // Steals I made: my submission for that GW
-        const mySub=state.gwSubmissions?.[session.managerIdx];
-        // gwHistory only has pts not per-player breakdown
-        // We store submissions per-GW in gwHistory if available
-        // For now use gwSubmissions (current GW only) as a proxy
-        // and fall back to counting from gwHistory totals
+        const myGW=gw[session.managerIdx];
+        if(!myGW) return;
+
+        // Steals I made this GW (stored in history from GW2 onwards)
+        if(myGW.steals && myGW.steals.length>0) {
+          // Sum gwPts of stolen players — look up in players array
+          myGW.steals.forEach(pid=>{
+            const p=state.players.find(x=>x.id===Number(pid));
+            if(p) seasonStealPts+=(p.gwPts||0);
+          });
+          seasonStealGWs++;
+        }
+
+        // Duds planted in me this GW (stored as saboteurs from attacker's history entry)
+        // attackerIdx for this GW stored in history
+        if(myGW.attackerIdx!==undefined) {
+          const attackerGW=gw[myGW.attackerIdx];
+          if(attackerGW?.saboteurs) {
+            attackerGW.saboteurs.forEach(pid=>{
+              const p=state.players.find(x=>x.id===Number(pid))||(state.activePool||[]).find(x=>x.id===Number(pid));
+              if(p) seasonDudPts+=(p.gwPts||0);
+            });
+            seasonDudGWs++;
+          }
+        }
       });
 
-      // Better approach: use current GW submissions for the current week
-      // and gwHistory for season context
-      // Current GW steals I made
+      // Add current GW in progress (not yet finalised)
       const mySub=state.gwSubmissions?.[session.managerIdx]||{};
       const myStealPids=(mySub.steals||[]).filter(Boolean);
-      const myStealPts=myStealPids.reduce((s,pid)=>{
-        const p=state.players.find(x=>x.id===pid);
+      const currentStealPts=myStealPids.reduce((s,pid)=>{
+        const p=state.players.find(x=>x.id===Number(pid))||(state.activePool||[]).find(x=>x.id===Number(pid));
         return s+(p?.gwPts||0);
       },0);
 
-      // Current GW duds planted in me
       const attackerIdx=state.rotation.indexOf(session.managerIdx);
       const attackSub=state.gwSubmissions?.[attackerIdx]||{};
       const myDudPids=(attackSub.saboteurs||[]).filter(Boolean);
-      const myDudPts=myDudPids.reduce((s,pid)=>{
-        const p=state.players.find(x=>x.id===pid)||(state.activePool||[]).find(x=>x.id===pid);
+      const currentDudPts=myDudPids.reduce((s,pid)=>{
+        const p=state.players.find(x=>x.id===Number(pid))||(state.activePool||[]).find(x=>x.id===Number(pid));
         return s+(p?.gwPts||0);
       },0);
 
-      // Season totals — stored in state if we track them, otherwise GW count
+      const totalStealPts=seasonStealPts+currentStealPts;
+      const totalDudPts=seasonDudPts+currentDudPts;
       const completedGWs=(state.gwHistory||[]).length;
-      const stolenPts=myStealPts;
-      const dudPts=myDudPts;
-      const stolenOutPids=myStealPids;
-      const dudPids=myDudPids;
 
       html += `<div class="card" style="padding:0;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border)">
@@ -800,18 +874,20 @@ async function loadDashboard() {
             <div style="text-align:right"><div style="font-family:'JetBrains Mono',monospace;font-size:18px;color:var(--gold);font-weight:600">${myPts}</div><div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase">Season</div></div>
           </div>
         </div>
-        ${teamRows}
+        <div style="padding:12px">${pitchHTML}</div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
         <div class="card" style="text-align:center;padding:16px">
           <div style="font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--blue);margin-bottom:6px">🗡 Points from your steals</div>
-          <div style="font-family:'JetBrains Mono',monospace;font-size:28px;color:var(--blue)">${stolenPts}</div>
-          <div style="font-size:11px;color:var(--text-dim);margin-top:4px">${stolenOutPids.length} stolen · GW${state.currentGW}</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:28px;color:var(--blue)">${totalStealPts}</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:4px">Season total · ${completedGWs} GW${completedGWs!==1?'s':''} played</div>
+          ${currentStealPts>0?`<div style="font-size:11px;color:var(--blue);margin-top:4px">+${currentStealPts} this GW</div>`:''}
         </div>
         <div class="card" style="text-align:center;padding:16px">
           <div style="font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--red);margin-bottom:6px">💣 Points from duds in your team</div>
-          <div style="font-family:'JetBrains Mono',monospace;font-size:28px;color:var(--red)">${dudPts}</div>
-          <div style="font-size:11px;color:var(--text-dim);margin-top:4px">${dudPids.length} duds · GW${state.currentGW}</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:28px;color:var(--red)">${totalDudPts}</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:4px">Season total · ${completedGWs} GW${completedGWs!==1?'s':''} played</div>
+          ${currentDudPts>0?`<div style="font-size:11px;color:var(--red);margin-top:4px">+${currentDudPts} this GW</div>`:''}
         </div>
       </div>`;
     }
@@ -1385,13 +1461,18 @@ function renderGWPicks(el) {
       </div>`}
 
     <div class="card">
-      <div class="card-title">My Base Team</div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px">
-        ${(gwState.baseTeams[mIdx]||[]).map(p=>`
-          <div style="display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:6px 8px;font-size:11px">
-            <span class="pos pos-${p.pos}">${p.pos}</span>${p.name}
-            <span style="color:var(--gold);font-family:monospace">${p.gwPts||0}pts</span>
-          </div>`).join('')}
+      <d<div class="card-title">My Base Team</div>
+      <div style="display:flex;flex-direction:column;gap:0">
+        ${[...(gwState.baseTeams[mIdx]||[])].sort((a,b)=>({GK:0,DEF:1,MID:2,FWD:3}[a.pos]||0)-({GK:0,DEF:1,MID:2,FWD:3}[b.pos]||0)).map(p=>{
+          const gwP=p.gwPts||0;
+          const ptsCol=gwP>=8?'var(--green)':gwP<=2&&gwP>0?'var(--red)':'var(--text-mid)';
+          return '<div style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-bottom:1px solid var(--surface2)">'
+            +'<span class="pos pos-'+p.pos+'">'+p.pos+'</span>'
+            +'<div style="flex:1"><div style="font-size:12px;font-weight:500;color:var(--text)">'+p.name+'</div>'
+            +'<div style="font-size:10px;color:var(--text-dim)">'+p.team+' · £'+p.price+'m</div></div>'
+            +'<div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:'+ptsCol+';font-weight:600">'+gwP+'pts</div>'
+            +'</div>';
+        }).join('')}
       </div>
     </div>`;
 }
