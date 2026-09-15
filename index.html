@@ -702,8 +702,8 @@ async function loadDashboard() {
           <div style="color:var(--text-dim);font-size:12px">Manager: ${session.name} · ${state.leagueName||'Saboteur League'}</div>
         </div>
         <div style="display:flex;gap:16px">
-          <div style="text-align:center"><div style="font-family:'JetBrains Mono',monospace;font-size:28px;color:var(--gold)">${myPts}</div><div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase">Season Pts</div></div>
-          <div style="text-align:center"><div style="font-family:'JetBrains Mono',monospace;font-size:28px;color:var(--gold)">${myWins}</div><div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase">GW Wins</div></div>
+          <div style="text-align:center"><div style="font-family:monospace;font-size:28px;color:var(--gold)">${myPts}</div><div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase">Season Pts</div></div>
+          <div style="text-align:center"><div style="font-family:monospace;font-size:28px;color:var(--gold)">${myWins}</div><div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase">GW Wins</div></div>
         </div>
       </div>`;
 
@@ -870,8 +870,8 @@ async function loadDashboard() {
         <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border)">
           <div class="card-title" style="margin-bottom:0">Base Team · ${myTeam.length}/11</div>
           <div style="display:flex;gap:16px">
-            ${lastGWPts!==null?`<div style="text-align:right"><div style="font-family:'JetBrains Mono',monospace;font-size:18px;color:var(--gold);font-weight:600">${lastGWPts}</div><div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase">Last GW</div></div>`:''}
-            <div style="text-align:right"><div style="font-family:'JetBrains Mono',monospace;font-size:18px;color:var(--gold);font-weight:600">${myPts}</div><div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase">Season</div></div>
+            ${lastGWPts!==null?`<div style="text-align:right"><div style="font-family:monospace;font-size:18px;color:var(--gold);font-weight:600">${lastGWPts}</div><div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase">Last GW</div></div>`:''}
+            <div style="text-align:right"><div style="font-family:monospace;font-size:18px;color:var(--gold);font-weight:600">${myPts}</div><div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase">Season</div></div>
           </div>
         </div>
         <div style="padding:12px">${pitchHTML}</div>
@@ -879,13 +879,13 @@ async function loadDashboard() {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
         <div class="card" style="text-align:center;padding:16px">
           <div style="font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--blue);margin-bottom:6px">🗡 Points from your steals</div>
-          <div style="font-family:'JetBrains Mono',monospace;font-size:28px;color:var(--blue)">${totalStealPts}</div>
+          <div style="font-family:monospace;font-size:28px;color:var(--blue)">${totalStealPts}</div>
           <div style="font-size:11px;color:var(--text-dim);margin-top:4px">Season total · ${completedGWs} GW${completedGWs!==1?'s':''} played</div>
           ${currentStealPts>0?`<div style="font-size:11px;color:var(--blue);margin-top:4px">+${currentStealPts} this GW</div>`:''}
         </div>
         <div class="card" style="text-align:center;padding:16px">
           <div style="font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--red);margin-bottom:6px">💣 Points from duds in your team</div>
-          <div style="font-family:'JetBrains Mono',monospace;font-size:28px;color:var(--red)">${totalDudPts}</div>
+          <div style="font-family:monospace;font-size:28px;color:var(--red)">${totalDudPts}</div>
           <div style="font-size:11px;color:var(--text-dim);margin-top:4px">Season total · ${completedGWs} GW${completedGWs!==1?'s':''} played</div>
           ${currentDudPts>0?`<div style="font-size:11px;color:var(--red);margin-top:4px">+${currentDudPts} this GW</div>`:''}
         </div>
@@ -1470,7 +1470,7 @@ function renderGWPicks(el) {
             +'<span class="pos pos-'+p.pos+'">'+p.pos+'</span>'
             +'<div style="flex:1"><div style="font-size:12px;font-weight:500;color:var(--text)">'+p.name+'</div>'
             +'<div style="font-size:10px;color:var(--text-dim)">'+p.team+' · £'+p.price+'m</div></div>'
-            +'<div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:'+ptsCol+';font-weight:600">'+gwP+'pts</div>'
+            +'<div style="font-family:monospace;font-size:13px;color:'+ptsCol+';font-weight:600">'+gwP+'pts</div>'
             +'</div>';
         }).join('')}
       </div>
@@ -2234,7 +2234,7 @@ function viewTeam(mIdx, state, mgMap) {
             <div style="font-size:10px;color:var(--text-dim)">${p.team} · £${p.price}m</div>
           </div>
           <div style="text-align:right">
-            <div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:${ptsColour};font-weight:600">${gwP}pts</div>
+            <div style="font-family:monospace;font-size:13px;color:${ptsColour};font-weight:600">${gwP}pts</div>
             <div style="font-size:9px;color:var(--text-dim)">this GW</div>
           </div>
         </div>`;
