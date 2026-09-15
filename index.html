@@ -940,10 +940,10 @@ async function loadDashboard() {
       </div>`;
     }
 
-    if (session.isCommissioner && state.gwPhase === 'transfer' && state.phase === 'gameweek') {
+    if (session.isCommissioner && (state.gwPhase === 'transfer' || state.gwPhase === 'picks_and_transfers') && state.phase === 'gameweek') {
       html += `<div class="card" style="margin-top:16px;border-color:var(--gold-dim)">
         <div class="card-title">⚙ Admin Controls</div>
-        <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px">${state.transfersDone.length}/${state.transferOrder.length} transfers done</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px">${state.transfersDone.length}/${NUM_MGR} transfers done · ${state.gwSubmissions.filter(s=>s.done).length}/${NUM_MGR} swaps submitted</div>
         <button class="btn btn-sm" onclick="commNextGW()">Start GW${state.currentGW+1}</button>
       </div>`;
     }
@@ -1350,7 +1350,7 @@ async function loadGameweek() {
       xiDone: s.xiDone||false,
     }));
 
-    if(gwState.gwPhase==='picks') renderGWPicks(el);
+    if(gwState.gwPhase==='picks'||gwState.gwPhase==='picks_and_transfers') renderGWPicks(el);
     else if(gwState.gwPhase==='xi') renderXIPicks(el);
     else if(gwState.gwPhase==='reveal') renderGWReveal(el);
     else if(gwState.gwPhase==='transfer') renderGWTransfer(el);
@@ -1474,7 +1474,17 @@ function renderGWPicks(el) {
             +'</div>';
         }).join('')}
       </div>
-    </div>`;
+    </div>
+    ${gwState.gwPhase==='picks_and_transfers'?`
+    <div class="card" style="margin-top:12px;border-color:var(--gold-dim)">
+      <div class="card-title">💸 GW${gwState.currentGW-1} Transfer — open alongside swaps</div>
+      ${gwState.transfersDone.includes(mIdx)
+        ?'<div style="color:var(--green);font-size:13px">✓ Transfer done</div>'
+        :`<div style="display:flex;gap:8px;margin-top:4px">
+          <button class="btn btn-ghost btn-sm" onclick="openTransferModal()">Make Transfer</button>
+          <button class="btn-outline btn btn-sm" onclick="skipTransfer()">Skip Transfer</button>
+        </div>`}
+    </div>`:''}`;
 }
 
 function openGWPicker(mode) {
@@ -2189,14 +2199,13 @@ async function commNextGW(){
     state.rotationWeek=(state.rotationWeek+1)%(NUM_MGR-1);
     state.rotation=buildRotation(state.rotationWeek);
     state.gwSubmissions=Array.from({length:NUM_MGR},()=>({steals:[null,null,null],saboteurs:[null,null,null],saboteurTargets:[null,null,null],done:false,selectedXI:[],xiDone:false}));
-    state.gwPhase='picks';
-    state.transferOrder=[];
-    state.transfersDone=[];
+    state.gwPhase='picks_and_transfers';
     state.gwLocked=false;
+    // Keep transferOrder and transfersDone so transfers remain open alongside swaps
     await saveGame(session.gameId,state);
     gwState=state;
     updateGWBadge(state);
-    showToast(`GW${state.currentGW} begins!`,'success');
+    showToast('GW'+state.currentGW+' begins — swaps and transfers now open!','success');
     loadGameweek();
   } catch(e){showToast('Error: '+e.message,'error');}
 }
